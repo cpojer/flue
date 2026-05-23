@@ -21,7 +21,7 @@ Flue isn't another AI SDK. It's a proper runtime-agnostic framework — think As
 
 ## Examples
 
-Message-driven agents receive direct messages at `/agents/:name/:id` and inbound external-channel deliveries at `/channels/:channel`. See [Message-Driven Agents](docs/message-driven-agents.md) for direct attached surfaces, `receive(...)`, `dispatch(...)`, `init(...)`, and inbound-only channel examples.
+Message-driven agents receive direct HTTP or WebSocket messages at `/agents/:name/:id` and inbound external-channel deliveries at `/channels/:channel`. See [Message-Driven Agents](docs/message-driven-agents.md) for attached surfaces, `receive(...)`, `dispatch(...)`, `init(...)`, and inbound-only channel examples. Runnable WebSocket examples are available for [Node](examples/node-websocket) and [Cloudflare](examples/cloudflare-websocket).
 
 ### Quickstart
 
@@ -247,11 +247,14 @@ export async function run({ init, payload, env }: FlueContext) {
 
 ## Agents, Harnesses, And Sessions
 
-An agent is the source file in `agents/<name>.ts`. For HTTP agents, the URL `<id>` segment identifies the agent instance: the durable runtime scope for one customer, repo, conversation space, or other caller-defined boundary.
+An agent is the source file in `agents/<name>.ts`. For attached HTTP or WebSocket agents, the URL `<id>` segment identifies the agent instance: the durable runtime scope for one customer, repo, conversation space, or other caller-defined boundary.
 
 ```txt
 POST /agents/<agent-name>/<id>
+GET  /agents/<agent-name>/<id>  (Upgrade: websocket)
 ```
+
+Declare `websocket()` to open a long-lived SDK connection to that stable instance. One agent socket can issue sequential prompts and select a session per prompt; workflow sockets are one invocation per connection.
 
 In workflows, `init(createdAgent)` creates a harness: a configured handle for model defaults, tools, sandbox, filesystem, and sessions. Pass `init(createdAgent, { name })` when one workflow needs multiple isolated harness scopes. In agent modules, the runtime initializes the module's default `createAgent(...)` export when a message arrives.
 
@@ -377,7 +380,21 @@ flue dev --target cloudflare    # Cloudflare Workers (via wrangler) dev server
 
 Defaults to port `3583` ("FLUE" on a phone keypad). Override with `--port`.
 
-`flue dev --target cloudflare` requires `wrangler` as a peer dependency in your project (`npm install --save-dev wrangler`).
+```ts
+import { createFlueClient } from '@flue/sdk';
+
+const client = createFlueClient({ baseUrl: 'http://localhost:3583' });
+const chat = client.agents.connect('chat', 'customer-123');
+await chat.ready;
+await chat.prompt('Hello', { session: 'support' });
+chat.close();
+
+const job = client.workflows.connect('summarize');
+await job.ready;
+await job.invoke({ text: 'Summarize me' });
+```
+
+`websocket()` modules currently require Flue's generated default app; custom `app.ts` WebSocket mounting is not yet supported. Generated socket routes have no application-level upgrade authorization hook yet, so protect production WebSocket endpoints with an authenticated upstream gateway or proxy. `flue dev --target cloudflare` requires `wrangler` as a peer dependency in your project (`npm install --save-dev wrangler`).
 
 #### Loading environment variables
 

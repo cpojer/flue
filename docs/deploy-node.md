@@ -4,7 +4,7 @@ Build and deploy Flue agents as a Node.js server. This guide walks you through c
 
 By the end, you will have a Flue agent running as a Node.js server, and you will know how to add subagents, sandbox context, external CLIs, remote sandboxes, and durable session storage when your agent needs them.
 
-This guide focuses on deploying the generated Node server. For the message-driven agent API model, including direct `/agents/:name/:id` delivery and inbound external-channel `/channels/:channel` webhooks, see [Message-Driven Agents](message-driven-agents.md).
+This guide focuses on deploying the generated Node server. For the message-driven agent API model, including direct HTTP/WebSocket `/agents/:name/:id` delivery and inbound external-channel `/channels/:channel` webhooks, see [Message-Driven Agents](message-driven-agents.md).
 
 ## Project layout
 
@@ -105,6 +105,26 @@ node dist/server.mjs
 ```
 
 `flue build --target node` compiles your project into a `./dist` directory. The built server uses [Hono](https://hono.dev/) under the hood and listens on port 3000 by default (configurable via the `PORT` environment variable). Your project's `node_modules` are still needed at runtime — the build externalizes your dependencies rather than bundling them.
+
+### WebSocket endpoints
+
+Declare `websocket()` to expose an agent or workflow through the generated server's WebSocket upgrade handling. Agents use `GET /agents/:name/:id` and remain connected for sequential prompts; workflows use `GET /workflows/:name`, accept one invocation, return a result, and close.
+
+```ts
+import { createFlueClient } from '@flue/sdk';
+
+const client = createFlueClient({ baseUrl: 'http://localhost:3000' });
+const chat = client.agents.connect('chat', 'customer-123');
+await chat.ready;
+console.log(await chat.prompt('Hello', { session: 'support' }));
+chat.close();
+
+const job = client.workflows.connect('translate');
+await job.ready;
+console.log(await job.invoke({ text: 'Hello', language: 'French' }));
+```
+
+WebSocket modules currently require the generated default app and cannot be combined with custom `.flue/app.ts` routing yet. Generated WebSocket endpoints therefore do not currently provide an application-level upgrade authorization hook; protect production socket routes with an authenticated upstream gateway or proxy until custom mounting/authentication support is available.
 
 You can also invoke any workflow from the CLI without starting a server. `flue run` accepts the same `--env` flag:
 
@@ -294,8 +314,10 @@ The server exposes:
 
 - `GET /health` — Health check
 - `GET /agents` — Agent manifest
-- `POST /agents/:name/:id` — Invoke an agent
+- `POST /agents/:name/:id` — Invoke an HTTP-exposed agent
 - `POST /workflows/:name` — Invoke an HTTP-exposed workflow
+- `WS /agents/:name/:id` — Connect to a WebSocket-exposed agent instance
+- `WS /workflows/:name` — Invoke a WebSocket-exposed workflow once
 
 ### Deploying with Docker
 

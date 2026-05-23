@@ -112,6 +112,28 @@ importers:
         specifier: ^4.87.0
         version: 4.87.0(@cloudflare/workers-types@4.20260505.1)
 
+  examples/cloudflare-websocket:
+    dependencies:
+      '@flue/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      agents:
+        specifier: '*'
+        version: 0.12.3(@babel/core@7.29.0)(@babel/runtime@7.29.2)(@cloudflare/codemode@0.3.4(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(ai@6.0.175(zod@4.4.3))(zod@4.4.3))(@cloudflare/workers-types@4.20260505.1)(ai@6.0.175(zod@4.4.3))(react@19.2.5)(rolldown@1.0.0-rc.17)(zod@4.4.3)
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^4.20260505.1
+        version: 4.20260505.1
+      '@flue/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
+      '@flue/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+      wrangler:
+        specifier: ^4.87.0
+        version: 4.87.0(@cloudflare/workers-types@4.20260505.1)
+
   examples/cross-channel-routing:
     dependencies:
       '@flue/runtime':
@@ -165,6 +187,19 @@ importers:
       '@flue/cli':
         specifier: workspace:*
         version: link:../../packages/cli
+
+  examples/node-websocket:
+    dependencies:
+      '@flue/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+    devDependencies:
+      '@flue/cli':
+        specifier: workspace:*
+        version: link:../../packages/cli
+      '@flue/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
 
   examples/sentry:
     dependencies:

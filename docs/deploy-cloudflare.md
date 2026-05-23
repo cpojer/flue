@@ -117,6 +117,23 @@ curl http://localhost:3583/workflows/translate?wait=result \
 
 `flue run` starts the generated server in Node.js, so it only supports `--target node`. Cloudflare builds use Worker-only runtime modules — `flue dev --target cloudflare` is the equivalent for testing them locally.
 
+### WebSocket connections
+
+Declare `websocket()` to expose a created agent at `GET /agents/:name/:id` with a WebSocket upgrade. The stable `:id` selects the owning Durable Object-backed agent instance, and a socket may issue sequential prompts. Workflow sockets are available at `GET /workflows/:name`, accept one invocation, and close after their terminal result.
+
+```ts
+import { createFlueClient } from '@flue/sdk';
+
+const client = createFlueClient({ baseUrl: 'http://localhost:3583' });
+const chat = client.agents.connect('chat', 'customer-123');
+await chat.ready;
+console.log(await chat.prompt('Hello', { session: 'support' }));
+console.log(await chat.prompt('Continue', { session: 'support' }));
+chat.close();
+```
+
+WebSocket modules currently require Flue's generated default app; custom `.flue/app.ts` WebSocket mounting is not yet supported on Cloudflare. Generated WebSocket endpoints therefore do not currently provide an application-level upgrade authorization hook; protect production socket routes with an authenticated upstream gateway or proxy until custom mounting/authentication support is available.
+
 ## Subagents
 
 Subagents define named delegates for detached task sessions:
@@ -385,6 +402,8 @@ When deploying to Cloudflare, Flue uses Durable Objects to automatically persist
 
 This is built in when you deploy with `--target cloudflare`. No extra configuration needed.
 
+WebSocket-exposed created agents use the same owning Durable Object scope. Flue's generated Cloudflare transport accepts hibernation-compatible sockets in that Durable Object so long-lived interactive connections retain the correct instance identity.
+
 ## Sandbox context
 
 `AGENTS.md` and skills are optional workspace-context files that the agent reads from its sandbox at `init()` time. They live at conventional paths inside whatever sandbox the agent is using — Flue looks for `<cwd>/AGENTS.md` and `<cwd>/.agents/skills/<name>/SKILL.md`. Whatever's there gets loaded; whatever isn't, doesn't. Most agents don't need either to do useful work.
@@ -444,6 +463,8 @@ curl https://my-support-agent.<your-subdomain>.workers.dev/workflows/translate?w
   -H "Content-Type: application/json" \
   -d '{"text": "Hello world", "language": "French"}'
 ```
+
+A deployed WebSocket-exposed agent is reached at `wss://my-support-agent.<your-subdomain>.workers.dev/agents/chat/customer-123` using the same SDK client shown above.
 
 ### Choosing a sandbox strategy
 

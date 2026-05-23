@@ -25,10 +25,11 @@ Agent modules default-export `createAgent(...)` so the runtime can initialize an
 
 ## Direct Attached Surfaces
 
-Direct attached surfaces already know the target agent instance. HTTP direct delivery uses:
+Direct attached surfaces already know the target agent instance. HTTP and WebSocket delivery use the same resource path:
 
 ```txt
 POST /agents/:name/:id
+GET  /agents/:name/:id  (Upgrade: websocket)
 ```
 
 The current HTTP payload is provisional:
@@ -48,13 +49,14 @@ Direct delivery:
 - initializes the instance through its default `createAgent(...)` export
 - bypasses `receive(...)`
 - bypasses `dispatch(...)`
-- can stream runtime events with `Accept: text/event-stream`
+- can stream runtime events with HTTP `Accept: text/event-stream` or a WebSocket connection
+
+Agent WebSockets are long lived: a single connection may issue sequential prompts, each optionally selecting a named session. Workflows may also declare `websocket()`, but a workflow socket accepts exactly one invocation and then closes after its terminal result.
 
 ```ts
-import { createAgent, defineAgentProfile } from '@flue/runtime';
-import { http } from '@flue/runtime/channels';
+import { createAgent, defineAgentProfile, http, websocket } from '@flue/runtime';
 
-export const channels = [http()];
+export const channels = [http(), websocket()];
 
 const assistant = defineAgentProfile({
   model: 'anthropic/claude-haiku-4-5',
@@ -73,6 +75,20 @@ Example request:
 curl http://localhost:3583/agents/assistant/user-123 \
   -H "Content-Type: application/json" \
   -d '{"message":"Hello","session":"thread:1"}'
+```
+
+Example socket client:
+
+```ts
+import { createFlueClient } from '@flue/sdk';
+
+const client = createFlueClient({ baseUrl: 'http://localhost:3583' });
+const socket = client.agents.connect('assistant', 'user-123');
+await socket.ready;
+socket.onEvent((event) => console.log(event));
+await socket.prompt('Hello', { session: 'thread:1' });
+await socket.prompt('Continue', { session: 'thread:1' });
+socket.close();
 ```
 
 ## External Channels
@@ -322,4 +338,5 @@ See `examples/cross-channel-routing` for a mock inbound routing example. It uses
 - There is no universal reply/thread abstraction yet.
 - Provider retries may produce duplicate deliveries; preserve provider ids in your input if idempotency matters.
 - Cloudflare external-channel dispatch processing is not durable yet and currently fails clearly for unsupported processing paths.
-- The direct HTTP payload shape is provisional.
+- The direct HTTP payload shape is provisional; WebSocket clients should use the published SDK/protocol surface.
+- WebSocket modules currently require Flue's generated default app; custom `app.ts` WebSocket mounting is not yet supported, so protect production socket routes with an authenticated upstream gateway or proxy.
