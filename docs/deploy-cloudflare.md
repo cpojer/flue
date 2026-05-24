@@ -57,7 +57,7 @@ export async function run({ init, payload }: FlueContext) {
 
 A few things to note:
 
-- **`channels = [http()]`** — This agent is invoked via HTTP. Flue creates a workflow route for it automatically.
+- **`channels = [http()]`** — This workflow is invoked via HTTP. Flue creates a workflow route for it automatically.
 - **`createAgent(...)` + `init(agent)`** — Created agents declare model and sandbox configuration; workflows initialize them only when needed. `init(agent)` fails unless its created agent config provides a model, sets `model: false`, or supplies a profile with a model. By default, Flue gives every agent a virtual sandbox powered by [just-bash](https://github.com/vercel-labs/just-bash). No container needed.
 - **Schemas** — The [Valibot](https://valibot.dev) schema defines the expected output shape. Flue parses the agent's response and returns it on `response.data`, fully typed.
 
@@ -410,12 +410,13 @@ A deployment or code update can reset a Durable Object while an operation is run
 
 | Operation | After interruption |
 | --- | --- |
-| Created agent turn | Flue recovers the same admitted run from persisted session input and attempts to complete it. |
+| Direct attached agent HTTP/WebSocket prompt | No public agent run exists. If the attached request or socket is interrupted, Flue does not provide a run-resume API. |
+| Dispatched agent input | Durable delivery and deduplication are keyed by `dispatchId` and persisted session/delivery state, not by a run. |
 | Flue workflow invocation | Flue terminalizes the interrupted attempt and restarts the workflow from its persisted payload as a new linked run. |
 
-Interruption recovery is **at-least-once**. For created agent turns, Flue persists the admitted user input before model execution and does not add a second copy of that input while recovering the same run. For workflows, the replacement run begins execution again from the start. In either case, an interruption after an external action has begun can cause that action to execute again. Side-effecting agent tools can use the stable recovered `runId` as an idempotency key. Because restarted workflows receive a new `runId`, workflow code should use an application-level idempotency key that remains stable across attempts.
+Recovery is **at-least-once** where durable asynchronous processing or workflow restart applies. An interruption after an external action has begun can cause that action to execute again. For dispatched agent work, use `dispatchId` or an application-level idempotency key when coordinating external side effects. Direct attached prompts do not expose a run identifier. Because restarted workflows receive a new `runId`, workflow code should use an application-level idempotency key that remains stable across attempts.
 
-Flue persists the parsed invocation payload with the run record so interrupted execution can recover or restart and operators can inspect the original input through run inspection APIs. Workflow attempt records expose `restartedAsRunId` and `restartedFromRunId` links between interrupted and replacement attempts. Treat payloads as durable application data: do not submit secrets or sensitive values unless your application retention and access policy permits storing them.
+Flue persists workflow invocation payloads with workflow run records so interrupted executions can restart and operators can inspect their original input through workflow run APIs. Workflow attempt records expose `restartedAsRunId` and `restartedFromRunId` links between interrupted and replacement attempts. Dispatched agent inputs are persisted as delivery/session state correlated by `dispatchId`, not as agent runs. Treat persisted inputs as durable application data: do not submit secrets or sensitive values unless your application retention and access policy permits storing them.
 
 Flue workflows restart from the beginning after Durable Object interruption; they do not resume from checkpointed durable steps. For jobs that require durable step-level continuation rather than whole-invocation retry, implement those steps with [Cloudflare Workflows](https://developers.cloudflare.com/workflows/).
 

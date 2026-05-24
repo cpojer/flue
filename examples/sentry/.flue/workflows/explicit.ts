@@ -1,7 +1,7 @@
 /**
  * Non-fatal, handler-reported failure.
  *
- * The agent catches an internal error itself and reports it via
+ * The workflow catches an internal error itself and reports it via
  * `ctx.log.error(...)`. The run completes successfully from Flue's
  * perspective — the HTTP response is a normal 200 — but Sentry
  * still receives an exception so the operator knows something went

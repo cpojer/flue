@@ -1,10 +1,10 @@
 # Sentry error reporting for Flue
 
-A working example of wiring Flue agents up to [Sentry](https://sentry.io)
+A working example of wiring Flue workflow runs up to [Sentry](https://sentry.io)
 for error reporting.
 
 This example is intended to be read top-to-bottom as documentation. The
-entire integration lives in [`.flue/app.ts`](.flue/app.ts) — every agent
+entire integration lives in [`.flue/app.ts`](.flue/app.ts) — every workflow
 in `.flue/workflows/` is a plain Flue handler that doesn't import Sentry,
 doesn't import the bridge, and doesn't know that error reporting is
 happening.
@@ -13,7 +13,7 @@ happening.
 
 After running this example with a Sentry DSN configured:
 
-- Every run that ends with an unhandled exception (the handler throws
+- Every workflow run that ends with an unhandled exception (the handler throws
   or rejects) becomes a Sentry issue tagged with the Flue `runId`,
   `workflow` name, harness name, and session name.
 - Every `ctx.log.error(...)` call from a handler becomes a Sentry
@@ -22,12 +22,14 @@ After running this example with a Sentry DSN configured:
 - Sentry tags use a stable `flue.*` prefix, so pivoting on
   `flue.run_id` in Sentry's search box finds every capture from a
   single Flue run.
-- A failing run in Sentry can be replayed in full by feeding the
+- A failing workflow run in Sentry can be replayed in full by feeding the
   `flue.run_id` tag back into the Flue CLI:
 
   ```
   flue logs <flue.run_id>
   ```
+
+This example contains workflows, so `runId`, `/runs`, and `flue logs` apply. Direct or dispatched agent interactions are not workflow runs; correlate them by agent instance/session, request identity, or `dispatchId` instead.
 
 ## What this example does NOT do
 
@@ -74,10 +76,10 @@ and how the pieces fit together.
 
 ## How the integration works
 
-Flue emits a structured event for every meaningful boundary in a run —
+Flue emits a structured event for every meaningful boundary in a workflow run —
 `run_start`, `operation`, `tool_call`, `log`, `run_end`, and others.
-Every event carries the Flue correlation tree (`runId`, `harness`,
-`session`, `operationId`, `taskId`) so any consumer can reconstruct
+Events emitted in that workflow run carry its correlation tree (`runId`,
+`harness`, `session`, `operationId`, `taskId`) so any consumer can reconstruct
 what happened.
 
 The `@flue/runtime/app` package exposes a single function for tapping that
@@ -93,7 +95,7 @@ observe((event, ctx) => {
 ```
 
 `observe` is called once at module scope. The subscriber receives every
-event from every run handled by the current isolate.
+event from every workflow run handled by the current isolate in this example.
 
 The bridge in `app.ts` is a single `observe(...)` call that filters for
 two event shapes:
@@ -214,7 +216,7 @@ To use this pattern in your own Flue project:
    the bridge code documents what each branch does and how to enable
    the others.
 
-That's the whole migration. There is nothing to do on a per-agent
+That's the whole setup for workflow-run error reporting. There is nothing to do on a per-workflow
 basis.
 
 ## Going further

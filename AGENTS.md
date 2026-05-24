@@ -14,8 +14,10 @@ Agent module                  — `agents/<name>.ts`; default-exports a created 
          └─ Operation        — one `session.prompt` / `skill` / `task` / `shell` call
             └─ Turn          — one LLM round-trip inside pi-agent-core
 Workflow                     — `workflows/<name>.ts`; exports `run(...)`
-└─ Workflow invocation        — unique `ctx.id`; initializes local created agents via `init(agent)` when needed
+└─ Workflow run/invocation    — unique `ctx.id === runId`; initializes local created agents via `init(agent)` when needed
 ```
+
+Runs are workflow-only. Direct HTTP/WebSocket agent prompts and dispatched agent inputs operate within persistent sessions and must not be described as runs. `dispatch(...)` is identified by `dispatchId`; `/runs` and `flue logs` inspect workflow runs only.
 
 Use `harness` as the variable name for the return value of `init()`. Agents have names; agent instances have ids; harnesses and sessions have names; operations have generated ids.
 

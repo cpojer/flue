@@ -69,11 +69,11 @@ curl https://<service>.onrender.com/agents/assistant/session-1 \
   -d '{"message": "How many people live there?"}'
 ```
 
-Reusing the ID keeps Flue's session scope stable. On Node.js, that session state lives in memory unless you wire up a custom store.
+Reusing the ID keeps Flue's session scope stable. On Node.js, that session state lives in memory unless you wire up a custom store. These HTTP prompts remain attached until they complete; they advance an agent session and do not create workflow runs or return `runId`.
 
 Render closes idle HTTP connections after about 100 seconds. Most prompt-and-response agents finish well inside that window, but if you build agents that run long tool chains or large multi-step prompts, plan for either streamed responses or a scheduled / background runner (see [Going further](#going-further)) instead of a single blocking request.
 
-If you only need webhook-triggered agents with in-memory sessions, you can stop here.
+If you only need direct attached agent prompts or authored webhook channels that dispatch inputs into in-memory sessions, you can stop here.
 
 ## 3. Review the web service config
 
@@ -261,8 +261,8 @@ If the response references `42`, your `SessionStore` is reading and writing thro
 
 A few patterns this guide doesn't cover yet:
 
-- **Scheduled runs.** Some agents work better as periodic jobs than as webhooks (nightly summaries, weekly reports, cache refreshes). Deploy them as a Render cron job whose `startCommand` is `npx flue run <workflow> --target node`. Each fire builds, runs the workflow once, and exits.
-- **Queue-backed workers.** For continuous, queue-backed agents, reach for a Render background worker. A common setup: a web service enqueues a job, a background worker pulls it from Render Key Value, the worker invokes a Flue agent, and the result lands in your data store. When Key Value is backing a queue, set `maxmemoryPolicy: noeviction` so jobs are never evicted.
+- **Scheduled workflows.** Some tasks are better modeled as periodic workflows than as inbound agent messages (nightly summaries, weekly reports, cache refreshes). Deploy them as a Render cron job whose `startCommand` is `npx flue run <workflow> --target node`. Each fire builds, runs the workflow once, and exits.
+- **Queue-backed workers.** For continuous, queue-backed agent delivery, reach for a Render background worker. A worker can make an attached agent request and wait for its result, or application code can use `dispatch(...)` for asynchronous delivery identified by `dispatchId`. When Key Value is backing a queue, set `maxmemoryPolicy: noeviction` so jobs are never evicted.
 
 For more, see Render's [Cron Jobs](https://render.com/docs/cron-jobs), [Background Workers](https://render.com/docs/background-workers), and the [Blueprint reference](https://render.com/docs/blueprint-spec).
 

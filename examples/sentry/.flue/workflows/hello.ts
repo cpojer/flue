@@ -1,7 +1,7 @@
 /**
- * Successful baseline agent.
+ * Successful baseline workflow.
  *
- * This agent always returns cleanly. Use it to confirm the integration
+ * This workflow always returns cleanly. Use it to confirm the integration
  * is wired up *without* producing Sentry traffic — a healthy run
  * emits no `run_end { isError: true }` and no `log { level: 'error' }`,
  * so the bridge in `app.ts` makes zero capture calls.

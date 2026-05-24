@@ -1,5 +1,5 @@
 /**
- * Run-fatal failure agent.
+ * Run-fatal failure workflow.
  *
  * This handler throws unconditionally. Flue catches the throw,
  * emits a `run_end` event with `isError: true` and a serialized
@@ -21,8 +21,8 @@
  *
  * Notice: the handler does not import Sentry. It does not know that
  * error reporting exists. That separation is the whole point — every
- * Flue agent in this project is instrumented for Sentry by virtue of
- * living in this project, without any per-agent boilerplate.
+ * Flue workflow in this project is instrumented for Sentry by virtue of
+ * living in this project, without any per-workflow boilerplate.
  */
 import { http, type FlueContext } from '@flue/runtime';
 

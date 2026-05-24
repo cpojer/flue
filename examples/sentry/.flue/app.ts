@@ -7,11 +7,11 @@
  *      that imports `app.ts` has a configured Sentry client.
  *
  *   2. Calls `observe(...)` to register a global Flue event subscriber
- *      that translates run-fatal errors and explicit error logs into
+ *      that translates workflow-run fatal errors and explicit error logs into
  *      `Sentry.captureException(...)` calls with Flue correlation tags.
  *
  * Read top-to-bottom — there are no other Sentry-related files in the
- * project. Every agent in `.flue/workflows/` is a plain Flue handler;
+ * project. Every workflow in `.flue/workflows/` is a plain Flue handler;
  * none of them know that Sentry exists.
  *
  *
@@ -97,8 +97,8 @@ Sentry.init({
 
 // `observe` is the only Flue API this file uses besides `flue()`
 // itself. It is module-scoped on purpose: register once, fire for
-// every run handled by this isolate, for the lifetime of the
-// isolate. There is no per-agent wiring and no per-request
+// every workflow run handled by this isolate, for the lifetime of
+// the isolate. There is no per-workflow wiring and no per-request
 // registration.
 //
 // The callback runs synchronously inside the Flue event emit path,
@@ -208,13 +208,7 @@ function flueCorrelationTags(event: FlueEvent): Record<string, string> {
 	if (event.operationId) tags['flue.operation_id'] = event.operationId;
 	if (event.taskId) tags['flue.task_id'] = event.taskId;
 	if (event.type === 'run_start') {
-		const ownerTags =
-			event.owner.kind === 'agent'
-				? {
-						'flue.agent': event.owner.agentName,
-						'flue.instance_id': event.owner.instanceId,
-					}
-				: { 'flue.workflow': event.owner.workflowName };
+		const ownerTags = { 'flue.workflow': event.owner.workflowName };
 		Object.assign(tags, ownerTags);
 		runOwnerTags.set(event.runId, ownerTags);
 	}

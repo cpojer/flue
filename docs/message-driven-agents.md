@@ -5,7 +5,7 @@ Flue has two execution products:
 - **Workflows return results.** Use workflows for finite request/result jobs.
 - **Agents receive messages.** Use agents for addressable instances that may receive many inputs over time.
 
-This guide covers message-driven agents, direct attached surfaces, and authored inbound channel applications. Channel support is inbound-only today. Flue does not automatically post replies, reactions, cards, or issue comments after an agent runs. Future outward effects should happen through explicit tools.
+This guide covers message-driven agents, direct attached surfaces, and authored inbound channel applications. Channel support is inbound-only today. Flue does not automatically post replies, reactions, cards, or issue comments after an agent processes an input. Future outward effects should happen through explicit tools.
 
 ## Agent Model
 
@@ -32,7 +32,7 @@ POST /agents/:name/:id
 GET  /agents/:name/:id  (Upgrade: websocket)
 ```
 
-The current HTTP payload is provisional:
+The HTTP prompt payload is:
 
 ```json
 {
@@ -51,7 +51,9 @@ Direct delivery:
 - bypasses `dispatch(...)`
 - can stream runtime events with HTTP `Accept: text/event-stream` or a WebSocket connection
 
-Agent WebSockets are long lived: a single connection may issue sequential prompts, each optionally selecting a named session. Workflows may also declare `websocket()`, but a workflow socket accepts exactly one invocation and then closes after its terminal result.
+Direct agent prompts are attached session interactions. They do not allocate or return a `runId`, emit workflow `run_start` / `run_end`, or appear in `/runs` and `flue logs`.
+
+Agent WebSockets are long lived: a single connection may issue sequential prompts, each optionally selecting a named session. Prompt frames are correlated by transport `requestId` and selected instance/session, not by a run identifier. Workflows may also declare `websocket()`, but a workflow socket accepts exactly one invocation and then closes after its terminal result because it represents one finite workflow run.
 
 ```ts
 import { createAgent, defineAgentProfile, http, websocket } from '@flue/runtime';
@@ -167,7 +169,7 @@ Channel event delivery:
 Use `dispatch(...)` inside a channel listener to admit structured input into an agent session:
 
 ```ts
-await dispatch({
+const receipt = await dispatch({
   agent: 'audit',
   id: 'account:acme',
   session: 'event:github-delivery-123',
@@ -176,6 +178,8 @@ await dispatch({
     deliveryId: delivery.id,
   },
 });
+
+console.log(receipt.dispatchId);
 ```
 
 Fields:
@@ -185,9 +189,13 @@ Fields:
 - `session`: target session id; defaults to `default`
 - `input`: JSON-like structured payload
 
-`await dispatch(...)` means the input was accepted and queued for the target session according to the current runtime's guarantees. It does not mean the model finished processing, produced a reply, or completed tool calls.
+`await dispatch(...)` means the input was accepted and queued for the target session according to the current runtime's guarantees. It does not mean the model finished processing, produced a reply, or completed tool calls. The returned `dispatchId` identifies asynchronous delivery and any delivery recovery or idempotency behavior; it is not a run ID.
 
-Flue preserves the structured input in session storage and renders it deterministically into model-visible context.
+Flue preserves the structured input in session storage and renders it deterministically into model-visible context. Dispatched inputs emit agent lifecycle events correlated by instance/session and `dispatchId`; they do not enter `/runs` or `flue logs`.
+
+## Lifecycle and Correlation
+
+Workflows are finite executions and emit `run_start` / `run_end` events correlated by workflow `runId`. Agent prompt and dispatched-input processing emit `agent_start` / `agent_end` with nested Pi-aligned message, turn, and tool lifecycle events. Direct interactions correlate by instance/session and transport request when applicable; dispatched interactions additionally carry `dispatchId`.
 
 ## `createAgent(...)`
 
@@ -252,5 +260,5 @@ The case/session model is application logic. For example, a moderation agent may
 - Authored channel applications are inbound-only.
 - There is no universal reply/thread abstraction yet.
 - Provider retries may produce duplicate events; preserve provider ids in your input if idempotency matters.
-- The direct HTTP payload shape is provisional; WebSocket clients should use the published SDK/protocol surface.
+- WebSocket clients should use the published SDK/protocol surface.
 - When using a custom `app.ts`, protect every exposed agent/workflow WebSocket route with ordinary application middleware before mounting `flue()`; without a custom app, protect production socket routes upstream. Avoid middleware that mutates WebSocket upgrade response headers.

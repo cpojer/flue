@@ -314,10 +314,12 @@ The server exposes:
 
 - `GET /health` — Health check
 - `GET /agents` — Agent manifest
-- `POST /agents/:name/:id` — Invoke an HTTP-exposed agent
+- `POST /agents/:name/:id` — Send an attached prompt to an HTTP-exposed agent instance
 - `POST /workflows/:name` — Invoke an HTTP-exposed workflow
 - `WS /agents/:name/:id` — Connect to a WebSocket-exposed agent instance
 - `WS /workflows/:name` — Invoke a WebSocket-exposed workflow once
+
+Agent prompt routes advance sessions without creating runs. Workflow invocations are the executions represented by workflow run IDs and inspectable through run tooling.
 
 ### Deploying with Docker
 

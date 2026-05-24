@@ -51,7 +51,7 @@
   }));
   ```
 
-- **Agents can now receive direct messages and dispatched channel events through the same instance/session model.** Direct HTTP calls to `/agents/:name/:id` wake the named agent instance, select a session, and immediately prompt the model; authored channel applications parse provider events and invoke agent-owned `channel.on(...)` listeners, where user code can filter events and `dispatch(...)` structured inputs into any target agent instance/session. Dispatched inputs are persisted into session history with dispatch metadata, rendered deterministically into model-visible context, and emit normal run lifecycle events when they process.
+- **Agents can now receive direct messages and dispatched channel events through the same instance/session model.** Direct HTTP and WebSocket prompts to `/agents/:name/:id` are attached interactions against the selected session. Authored channel applications parse provider events and invoke agent-owned `channel.on(...)` listeners, where user code can filter events and `dispatch(...)` structured inputs into any target agent instance/session. Accepted dispatches are identified by `dispatchId` and persisted into session history with delivery metadata. Neither direct prompts nor dispatched inputs create agent runs or emit workflow `run_start` / `run_end` events.
 
   ```bash
   curl http://localhost:3583/agents/assistant/account-123 \
@@ -227,7 +227,19 @@
 
 - **Reusable agent definitions were renamed to profiles.** Replace `defineAgent(...)` and `AgentDefinition` with `defineAgentProfile(...)` and `AgentProfile`. Created-agent initializers return `AgentRuntimeConfig`, where a single `profile` provides defaults and inline fields replace profile fields; array fields such as `tools`, `skills`, and `subagents` replace rather than append unless explicitly composed.
 
-- **Public handler context now uses `id` as the workflow identity.** `ctx.runId` is no longer exposed to user workflow code; for workflow invocations, `ctx.id` is the generated workflow instance identifier and is the same value accepted by the existing `/runs/:id` inspection routes. Internal run persistence and event fields remain in place during this transition.
+- **Public handler context now uses `id` as the workflow identity.** `ctx.runId` is no longer exposed to user workflow code; for workflow invocations, `ctx.id` is the generated workflow instance identifier and is the same value accepted by the workflow-only `/runs/:id` inspection routes. Internal run persistence and event fields remain in place during this transition.
+
+- **Agent-run APIs are removed in favor of persistent-session interaction semantics.** Run-oriented agent APIs described in earlier release notes are superseded by the workflow-only run model introduced in this release.
+
+  | Previous agent behavior | New behavior |
+  | --- | --- |
+  | Direct agent result included `_meta.runId` | Direct agent result returns its result without a run identifier |
+  | Direct agent HTTP accepted background/webhook prompt delivery | Use `dispatch(...)` for asynchronous delivery |
+  | Agent SSE/WebSocket events carried `runId` | Agent events correlate by instance/session/request or `dispatchId` |
+  | Agent prompts emitted `run_start` / `run_end` | Agent prompts emit `agent_start` / `agent_end` and nested lifecycle events |
+  | `/runs/:runId` inspected agent prompts | `/runs/:runId` inspects workflow runs only |
+  | Admin listed runs for an agent instance | Agent-instance run listing is removed |
+  | `flue logs` used generic run terminology | `flue logs` accepts workflow run IDs only |
 
 - **The admin agent manifest now reports created-agent capability as `created`.** Consumers of admin manifest data or `@flue/sdk` should replace the former `init` boolean with `created`, matching agent modules that now default-export `createAgent(...)`.
 
@@ -250,7 +262,7 @@
 
 - **Reject oversized persisted run events.** Flue now fails runs that emit event payloads beyond the 256 KB persistence limit instead of attempting to store them, avoiding excessive run-history storage work while preserving lifecycle cleanup.
 
-- **Direct agent delivery, dispatched inputs, and workflow runs now share more of the run/event infrastructure.** Direct agent HTTP calls still support regular JSON responses and `Accept: text/event-stream`; globally dispatched inputs now wake the target agent, append a model-visible dispatch message, run the target session immediately, and emit `run_start` / operation / `run_end` lifecycle events. Workflow HTTP calls default to fire-and-forget admission with `202 { status: "accepted", runId }`; use `?wait=result` for a synchronous JSON result envelope or `Accept: text/event-stream` to stream run events. `flue run` uses detached streams so CLI invocations can follow the same run log model as deployed HTTP routes.
+- **Workflow runs and agent interactions now have separate lifecycle models.** Workflows retain persisted runs, `runId`, `/runs` inspection, and `run_start` / `run_end`. Direct agent HTTP calls still support regular JSON responses and `Accept: text/event-stream`, but direct and dispatched agent inputs execute inside persistent sessions and emit agent lifecycle events instead of workflow run boundaries. Dispatched delivery is correlated by `dispatchId`. Workflow HTTP calls default to fire-and-forget admission with `202 { status: "accepted", runId }`; use `?wait=result` for a synchronous JSON result envelope or `Accept: text/event-stream` to stream workflow run events. `flue run` and `flue logs` remain workflow-run tooling.
 
 - **Authored channel listener delivery is failure-isolated.** `channel.emit(...)` invokes registered `channel.on(...)` listeners independently and returns `{ invoked, errors }`; each listener may dispatch zero, one, or many JSON-like inputs while global dispatch snapshots its accepted input at admission time.
 
