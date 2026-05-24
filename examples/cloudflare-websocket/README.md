@@ -8,6 +8,7 @@ From the repository root:
 
 ```bash
 pnpm --filter @flue/runtime build
+pnpm --filter @flue/sdk build
 pnpm --filter @flue/cli build
 pnpm exec bgproc start -n flue-cf-ws-live --wait-for-port 10 --force -- \
   pnpm --dir ./examples/cloudflare-websocket exec flue dev --target cloudflare --port 3584
@@ -20,15 +21,25 @@ The live client verifies that unauthenticated agent and workflow upgrades are re
 
 ## Agent connection
 
-The `chat` agent uses Workers AI for real prompts. Because this fixture uses a custom `/api` mount and a test query-token middleware, connect directly to:
+The `chat` agent uses Workers AI for real prompts. Because this fixture uses a custom `/api` mount and a test query-token middleware, configure the SDK socket route and handshake URL explicitly:
 
-```txt
-ws://localhost:3584/api/agents/chat/customer-123?token=live-test
+```ts
+import { createFlueClient } from '@flue/sdk';
+
+const client = createFlueClient({
+  baseUrl: 'http://localhost:3584',
+  websocketBasePath: '/api',
+  websocketUrl: (url) => {
+    url.searchParams.set('token', 'live-test');
+    return url;
+  },
+});
+
+const chat = client.agents.connect('chat', 'customer-123');
+await chat.ready;
 ```
 
-The stable instance id selects the same Durable Object-backed agent scope. The generated Cloudflare transport accepts hibernation-compatible sockets inside that owning Durable Object.
-
-The SDK currently builds canonical root-mounted socket paths; custom mounted-prefix SDK configuration is a separate follow-up. Use a direct `WebSocket` client for this fixture's `/api` routes.
+The stable instance id selects the same Durable Object-backed agent scope. The generated Cloudflare transport accepts hibernation-compatible sockets inside that owning Durable Object. HTTP SDK `token` and `headers` settings do not apply automatically to the WebSocket handshake.
 
 Deploy with:
 

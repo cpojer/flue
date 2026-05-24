@@ -260,5 +260,6 @@ The case/session model is application logic. For example, a moderation agent may
 - Authored channel applications are inbound-only.
 - There is no universal reply/thread abstraction yet.
 - Provider retries may produce duplicate events; preserve provider ids in your input if idempotency matters.
-- WebSocket clients should use the published SDK/protocol surface.
+- WebSocket clients should use the published SDK/protocol surface. Configure SDK `websocketBasePath` for custom-mounted socket routes and `websocketUrl` for URL-carried or signed handshake authentication.
+- HTTP SDK `token` and `headers` options do not automatically authenticate WebSocket upgrades; browser clients should use cookies or application-designed URL authentication.
 - When using a custom `app.ts`, protect every exposed agent/workflow WebSocket route with ordinary application middleware before mounting `flue()`; without a custom app, protect production socket routes upstream. Avoid middleware that mutates WebSocket upgrade response headers.

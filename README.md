@@ -396,7 +396,7 @@ await job.ready;
 await job.invoke({ text: 'Summarize me' });
 ```
 
-With a custom `app.ts`, authenticate both agent and workflow WebSocket paths through ordinary Hono middleware before `app.route('/api', flue())`; the same routing model works on Node and Cloudflare. The SDK socket helpers currently target root-mounted socket paths; connect to custom prefixes or application-authenticated upgrade URLs with a directly constructed/custom WebSocket client for now. Without a custom app, protect production socket endpoints through an authenticated upstream gateway or proxy. Avoid header-mutating middleware around WebSocket upgrade routes. `flue dev --target cloudflare` requires `wrangler` as a peer dependency in your project (`npm install --save-dev wrangler`).
+With a custom `app.ts`, authenticate both agent and workflow WebSocket paths through ordinary Hono middleware before `app.route('/api', flue())`; the same routing model works on Node and Cloudflare. Configure `websocketBasePath: '/api'` for the custom mount and `websocketUrl: (url) => { url.searchParams.set('token', socketToken); return url; }` for URL-carried or signed handshake authentication. HTTP `token` and `headers` options do not automatically apply to WebSocket upgrades; browsers should use cookies or application-designed URL authentication, while Node clients needing implementation-specific headers can provide a custom `websocket` factory. Without a custom app, protect production socket endpoints through an authenticated upstream gateway or proxy. Avoid header-mutating middleware around WebSocket upgrade routes. `flue dev --target cloudflare` requires `wrangler` as a peer dependency in your project (`npm install --save-dev wrangler`).
 
 #### Loading environment variables
 
