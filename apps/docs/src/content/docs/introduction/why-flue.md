@@ -1,14 +1,24 @@
 ---
 title: Why Flue?
-description: Build agents and typed workflows with secure, explicit runtime capabilities.
+description: Build programmable agents with explicit runtime capabilities and deployment surfaces.
 ---
 
-Flue gives application developers direct control over agent execution surfaces: tools, skills, sandbox state, sessions, and deployed workflows.
+## Agents need an environment
 
-## Designed for action
+TODO: Explain why useful agents need context, tools, state, and compute beyond a prompt.
 
-Use attached agents for persistent interactions and workflows for bounded, observable invocation paths.
+## Programmable orchestration
 
-## Designed for control
+TODO: Explain how TypeScript workflows and agents keep application behavior under developer control.
 
-Your application owns credentials, permissions, effects, and runtime boundaries while the model reasons through tasks.
+## Persistent interactions and finite runs
+
+TODO: Frame Flue's distinction between ongoing agent sessions and observable workflow runs.
+
+## Explicit capability boundaries
+
+TODO: Explain that applications choose tools, sandboxes, credentials, routing, and persistence.
+
+## Deploy across runtimes
+
+TODO: Introduce Node.js and Cloudflare as deployment targets without duplicating deployment guides.

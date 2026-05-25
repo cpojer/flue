@@ -51,8 +51,7 @@ const currentSection = getDocsSection(currentSlug);
 			<main id="main-content" class="min-w-0 pt-12 px-[clamp(2.6rem,4vw,4.45rem)] pb-14 max-docs-desktop:pt-8 max-docs-desktop:px-4 max-docs-desktop:pb-10">
 				<article class="mx-auto max-w-175">
 					<header class="mb-7">
-						<h1 class="m-0 mb-3 text-4xl font-semibold leading-tight tracking-tight text-gray-950 max-docs-desktop:text-3xl">{title}</h1>
-						{description && <p class="m-0 text-base leading-relaxed text-docs-muted">{description}</p>}
+						<h1 class="m-0 text-4xl font-semibold leading-tight tracking-tight text-gray-950 max-docs-desktop:text-3xl">{title}</h1>
 					</header>
 					<div class="docs-content">
 						<slot />

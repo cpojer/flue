@@ -1,66 +1,32 @@
 ---
 title: Agents
-description: Understand profiles, instances, harnesses, sessions, operations, and workflow runs.
-sidebar:
-  order: 1
+description: Understand persistent, addressable agents and how they relate to sessions and workflows.
 ---
 
-import Callout from '../../../components/docs/Callout.astro';
+## What is an agent?
 
-Flue separates the reusable definition of agent behavior from the durable runtime scope where conversations and workspace state live. This lets a single agent definition support many independent user, repository, or automation contexts.
+TODO: Introduce agents as deployed, addressable behavior for ongoing interactions and event-driven work.
 
-## The agent model
+## Define an agent
 
-An **agent profile** is one reusable `defineAgentProfile(...)` value. A **created agent** is the runtime initializer returned by `createAgent(...)`. Once deployed, an **agent instance** is selected by an application-provided `id`.
+TODO: Explain the roles of an agent profile, a created agent, and an exported agent module.
 
-```text
-Agent profile → Created agent → Agent instance
-                              └─ Harness → Session → Operation → Turn
-```
+## Agent instances
 
-| Term           | Meaning                                                          | Typical API surface       |
-| -------------- | ---------------------------------------------------------------- | ------------------------- |
-| Agent profile  | Reusable defaults or delegated behavior.                         | `defineAgentProfile(...)` |
-| Created agent  | Initializer for one configured agent.                            | `createAgent(...)`        |
-| Agent instance | Durable runtime scope identified by a URL `id`.                  | `/agents/:name/:id`       |
-| Harness        | Initialized environment for tools, model, sandbox, and sessions. | `init(agent)`             |
-| Session        | Conversational history inside a harness.                         | `harness.session()`       |
-| Operation      | A prompt, skill, task, or shell invocation.                      | `session.prompt(...)`     |
-| Turn           | A single LLM round-trip inside an operation.                     | Runtime-managed           |
+TODO: Explain that a caller-provided instance `id` identifies a stable runtime scope.
 
-## Harnesses and sessions
+## Sessions and operations
 
-A harness is created when a workflow initializes an agent, or when the runtime initializes an attached agent module for an incoming message. Sessions belong to a harness and are where conversation history is retained.
+TODO: Preview the harness/session model without duplicating the Harness guide.
 
-```ts
-const agent = createAgent(() => ({ model: 'anthropic/claude-sonnet-4-6' }));
-const harness = await init(agent);
-const session = await harness.session('review-thread');
+## Interact with an agent
 
-await session.prompt('Summarize the repository architecture.');
-await session.task('Investigate the failing build.');
-```
+TODO: Introduce direct HTTP/WebSocket prompts and asynchronous dispatched input.
 
-Multiple sessions can share the same harness workspace while maintaining separate conversational histories. Use names intentionally when an agent needs independent discussion threads over one shared project context.
+## Agents are not workflow runs
 
-<Callout kind="note" title="Runs have a precise meaning">
-	A run describes a workflow invocation only. Direct prompts sent to an agent instance and
-	asynchronous inputs sent through `dispatch(...)` operate within persistent sessions and are
-	identified separately.
-</Callout>
+TODO: State that direct agent interactions and dispatches belong to persistent sessions, not `/runs`.
 
-## Instances and persistence
+## When to use an agent
 
-For an attached agent endpoint, callers choose the instance identifier in the URL:
-
-```bash
-curl http://localhost:3583/agents/support/acme-repository \
-  -H 'Content-Type: application/json' \
-  -d '{"message":"Summarize open issues"}'
-```
-
-Calling the same `id` again addresses the same instance. A new `id` starts a distinct durable boundary. The selected runtime target determines how session data is stored and recovered.
-
-## Choose the right surface
-
-Use a workflow when your application needs one bounded orchestration and an observable run result. Use an attached agent instance when clients need to return to a continuing session over HTTP or WebSocket. Both surfaces use the same core model, harness, and operation vocabulary.
+TODO: Contrast continuing assistants and event-driven agents with bounded workflows.

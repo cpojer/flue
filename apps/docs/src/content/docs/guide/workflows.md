@@ -1,18 +1,32 @@
 ---
 title: Workflows
-description: Export finite, typed jobs that follow a controlled path from input to output.
+description: Understand finite orchestrations that execute as observable workflow runs.
 ---
 
-A workflow is a bounded invocation surface for orchestration that returns a result and can be inspected as a run.
+## What is a workflow?
+
+TODO: Introduce workflows as bounded invocation surfaces that perform work and return a result.
 
 ## Define a workflow
 
-```ts
-export async function run({ init, payload }: FlueContext) {
-  const harness = await init(agent);
-  const session = await harness.session();
-  return session.prompt(`Handle ${payload.task}.`);
-}
-```
+TODO: Explain `run()` and the workflow context at a conceptual level.
 
-Use workflows for automated jobs, CI actions, and request paths that need clear completion semantics.
+## Initialize agents within a workflow
+
+TODO: Show why a workflow calls `init()` to use a harness and session.
+
+## Payloads and results
+
+TODO: Preview receiving input and returning text or validated structured data.
+
+## Workflow runs
+
+TODO: Establish `runId`, run events, and inspection through logs/run endpoints.
+
+## Invoke a workflow
+
+TODO: Cover CLI, HTTP, and WebSocket invocation paths at a high level.
+
+## When to use a workflow
+
+TODO: Position workflows for finite jobs, CI automation, and inspectable orchestration.
