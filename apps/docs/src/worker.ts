@@ -1,6 +1,19 @@
+interface MarkdownConversionResult {
+	format: 'markdown' | 'error';
+	data?: string;
+	error?: string;
+	tokens?: number;
+}
+
 interface Env {
 	ASSETS: {
 		fetch(request: Request): Promise<Response>;
+	};
+	AI: {
+		toMarkdown(
+			document: { name: string; blob: Blob },
+			options?: { conversionOptions?: { html?: { hostname?: string; cssSelector?: string } } },
+		): Promise<MarkdownConversionResult>;
 	};
 }
 
@@ -17,9 +30,36 @@ export default {
 		}
 
 		url.pathname = url.pathname.slice(0, -'index.md'.length);
-		const headers = new Headers(request.headers);
-		headers.set('Accept', 'text/markdown');
+		const page = await env.ASSETS.fetch(new Request(url));
 
-		return fetch(new Request(url, { method: request.method, headers }));
+		if (!page.ok) {
+			return page;
+		}
+
+		const result = await env.AI.toMarkdown(
+			{
+				name: 'page.html',
+				blob: new Blob([await page.arrayBuffer()], { type: 'text/html' }),
+			},
+			{
+				conversionOptions: {
+					html: { hostname: url.origin, cssSelector: '[data-markdown-content]' },
+				},
+			},
+		);
+
+		if (result.format === 'error') {
+			return new Response(result.error ?? 'Unable to convert page to Markdown.', { status: 502 });
+		}
+
+		const headers = new Headers({
+			'Content-Type': 'text/markdown; charset=utf-8',
+		});
+
+		if (result.tokens !== undefined) {
+			headers.set('X-Markdown-Tokens', result.tokens.toString());
+		}
+
+		return new Response(request.method === 'HEAD' ? null : result.data, { headers });
 	},
 };

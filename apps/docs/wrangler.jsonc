@@ -1,8 +1,10 @@
 {
 	"name": "flue-docs",
 	"compatibility_date": "2026-04-01",
-	"compatibility_flags": ["global_fetch_strictly_public"],
 	"main": "./src/worker.ts",
+	"ai": {
+		"binding": "AI"
+	},
 	"routes": [
 		{ "pattern": "flueframework.com/docs", "zone_name": "flueframework.com" },
 		{ "pattern": "flueframework.com/docs/*", "zone_name": "flueframework.com" }

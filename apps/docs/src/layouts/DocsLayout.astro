@@ -61,7 +61,7 @@ const formattedReviewedDate = lastReviewedAt?.toLocaleDateString('en-US', {
 				<DocsSidebar groups={currentSection.groups} currentSlug={currentSlug} />
 			</aside>
 			<main id="main-content" class="min-w-0 pt-12 px-[clamp(2.6rem,4vw,4.45rem)] pb-14 max-docs-desktop:pt-8 max-docs-desktop:px-4 max-docs-desktop:pb-10">
-				<article class="mx-auto max-w-175">
+				<article data-markdown-content class="mx-auto max-w-175">
 					<header class="mb-8 border-b border-docs-border pb-3 max-docs-desktop:mb-7">
 						<h1 data-pagefind-body class="m-0 text-[3.25rem] font-semibold leading-[1.08] tracking-[-0.05em] text-gray-950 max-docs-desktop:text-[2.375rem]">{title}</h1>
 						<div class="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-gray-500 max-docs-desktop:mt-3 max-docs-desktop:gap-x-4">
