@@ -137,6 +137,8 @@
 	line-height: 1;
 	text-decoration: none;
 	opacity: 0;
+	user-select: none;
+	-webkit-user-select: none;
 	transition: color 150ms ease, opacity 150ms ease;
 }
 
@@ -173,7 +175,7 @@
 }
 
 .docs-content ol > li::marker {
-	color: #a8a9b0;
+	color: var(--docs-muted);
 }
 
 .docs-content li {
