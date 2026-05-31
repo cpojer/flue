@@ -54,3 +54,47 @@ function defineConfig(config: UserFlueConfig): UserFlueConfig;
 ```
 
 Provides type checking and editor completion for `flue.config.ts`. Returns the configuration unchanged.
+
+## `resolveConfig()`
+
+```ts
+function resolveConfig(opts: ResolveConfigOptions): Promise<ResolvedConfigResult>;
+```
+
+Discovers, loads, validates, merges, and resolves configuration for CLI and embedding callers. Inline values override configuration-file values, which override built-in defaults. Relative inline `root` and `output` paths resolve from `opts.cwd`; relative configuration-file paths resolve from the directory containing that file.
+
+Throws when validation fails or when no `target` is supplied.
+
+### `ResolveConfigOptions`
+
+| Option       | Type                           | Description                                                                                                 |
+| ------------ | ------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `cwd`        | `string`                       | Caller working directory and default config-search base.                                                    |
+| `searchFrom` | `string \| undefined`          | Optional config-search base. Defaults to `cwd`. Relative values resolve from the process working directory. |
+| `configFile` | `string \| false \| undefined` | Explicit config-file path relative to `cwd`, or `false` to skip loading.                                    |
+| `inline`     | `UserFlueConfig \| undefined`  | Validated inline overrides. Relative paths resolve from `cwd`.                                              |
+
+### `ResolvedConfigResult`
+
+| Property     | Type                  | Description                                                 |
+| ------------ | --------------------- | ----------------------------------------------------------- |
+| `configPath` | `string \| undefined` | Absolute path of the loaded config file.                    |
+| `userConfig` | `UserFlueConfig`      | Merged but unresolved configuration-file and inline values. |
+| `flueConfig` | `FlueConfig`          | Fully resolved configuration consumed by the CLI.           |
+
+## `resolveConfigPath()`
+
+```ts
+function resolveConfigPath(opts: ResolveConfigPathOptions): string | undefined;
+```
+
+Returns the absolute path of the selected `flue.config.*` file. Relative `cwd` values resolve from the process working directory; relative explicit `configFile` values resolve from normalized `cwd`. Returns `undefined` when no configuration file is found or when `configFile` is `false`.
+
+Throws when an explicit `configFile` path does not exist.
+
+### `ResolveConfigPathOptions`
+
+| Option       | Type                           | Description                                                                        |
+| ------------ | ------------------------------ | ---------------------------------------------------------------------------------- |
+| `cwd`        | `string`                       | Working directory for config discovery and relative `configFile` paths.            |
+| `configFile` | `string \| false \| undefined` | Explicit config-file path relative to `cwd`, or `false` to disable config loading. |
