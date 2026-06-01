@@ -54,13 +54,13 @@ The following categories are stable for framework-owned transport failures. HTTP
 
 ## Transport envelopes
 
-| Surface                               | Envelope                                                    |
-| ------------------------------------- | ----------------------------------------------------------- |
-| HTTP error response                   | `{ error: FluePublicError }`                                |
-| Attached-agent SSE terminal error     | `AttachedAgentStreamError`                                  |
-| Workflow-run SSE infrastructure error | `{ error: FluePublicError }`                                |
-| WebSocket connection or request error | `WebSocketErrorMessage`                                     |
-| Workflow WebSocket run-scoped error   | `WorkflowWebSocketServerMessage` error variant with `runId` |
+| Surface                               | Envelope                           |
+| ------------------------------------- | ---------------------------------- |
+| HTTP error response                   | `{ error: FluePublicError }`       |
+| Attached-agent SSE terminal error     | `AttachedAgentStreamError`         |
+| Workflow-run SSE infrastructure error | `{ error: FluePublicError }`       |
+| WebSocket connection or request error | `WebSocketErrorMessage`            |
+| Workflow WebSocket run-scoped error   | `WorkflowRunWebSocketErrorMessage` |
 
 See [Events Reference](/docs/api/events-reference/) for attached-agent event streams and WebSocket protocol message types.
 

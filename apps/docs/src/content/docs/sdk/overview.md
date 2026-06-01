@@ -48,6 +48,7 @@ import {
   type WebSocketServerMessage,
   type WebSocketTarget,
   type WebSocketUrlTransform,
+  type WorkflowRunWebSocketErrorMessage,
   type WorkflowSocket,
   type WorkflowSocketEventContext,
   type WorkflowSocketEventListener,
@@ -398,11 +399,12 @@ Structured error envelope received while streaming a direct agent interaction. T
 
 Most consumers should use `AgentSocket` and `WorkflowSocket`. Low-level protocol consumers can use the exported message types:
 
-| Type                             | Description                                  |
-| -------------------------------- | -------------------------------------------- |
-| `AgentWebSocketClientMessage`    | Messages sent over an agent WebSocket.       |
-| `AgentWebSocketServerMessage`    | Messages received from an agent WebSocket.   |
-| `WorkflowWebSocketClientMessage` | Message sent over a workflow WebSocket.      |
-| `WorkflowWebSocketServerMessage` | Messages received from a workflow WebSocket. |
-| `WebSocketServerMessage`         | Union of agent and workflow server messages. |
-| `WebSocketErrorMessage`          | Structured socket error message.             |
+| Type                               | Description                                                 |
+| ---------------------------------- | ----------------------------------------------------------- |
+| `AgentWebSocketClientMessage`      | Messages sent over an agent WebSocket.                      |
+| `AgentWebSocketServerMessage`      | Messages received from an agent WebSocket.                  |
+| `WorkflowWebSocketClientMessage`   | Message sent over a workflow WebSocket.                     |
+| `WorkflowWebSocketServerMessage`   | Messages received from a workflow WebSocket.                |
+| `WebSocketServerMessage`           | Union of agent and workflow server messages.                |
+| `WebSocketErrorMessage`            | Connection- or request-scoped socket error message.         |
+| `WorkflowRunWebSocketErrorMessage` | Workflow-run-scoped socket failure after run id allocation. |

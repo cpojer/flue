@@ -16,6 +16,7 @@ import {
   type FluePublicError,
   type WebSocketErrorMessage,
   type WebSocketServerMessage,
+  type WorkflowRunWebSocketErrorMessage,
   type WorkflowWebSocketClientMessage,
   type WorkflowWebSocketServerMessage,
   observe,
@@ -206,7 +207,7 @@ type WorkflowWebSocketServerMessage =
   | { version: 1; type: 'event'; requestId: string; runId: string; event: FlueEvent }
   | { version: 1; type: 'result'; requestId: string; runId: string; result: unknown }
   | WebSocketErrorMessage
-  | { version: 1; type: 'error'; requestId?: string; runId: string; error: FluePublicError };
+  | WorkflowRunWebSocketErrorMessage;
 ```
 
 Workflow sockets accept one invocation and close after completion or failure. `started` reports an admitted workflow invocation before workflow events are delivered.
@@ -222,7 +223,17 @@ type WebSocketErrorMessage = {
 };
 ```
 
-Connection- or request-scoped WebSocket failure. Workflow failures may include `runId` through the run-scoped `WorkflowWebSocketServerMessage` error variant.
+Connection- or request-scoped WebSocket failure.
+
+#### `WorkflowRunWebSocketErrorMessage`
+
+```ts
+type WorkflowRunWebSocketErrorMessage = WebSocketErrorMessage & {
+  runId: string;
+};
+```
+
+Workflow-run-scoped WebSocket failure after a run id has been allocated. It can occur before a `started` frame when workflow admission fails.
 
 #### `WebSocketServerMessage`
 
