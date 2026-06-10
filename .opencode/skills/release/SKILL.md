@@ -29,11 +29,12 @@ Before editing, inspect all workspace `package.json` files. Change versions only
 6. Run `pnpm install --lockfile-only` if necessary to update version-related lockfile metadata.
 7. Rebuild from scratch: remove generated build outputs for public packages, then run the repository build command (`pnpm run build` from the repository root).
 8. Run repository validation before publishing: `pnpm run check` from the repository root.
-9. Publish each public package from its package directory using `pnpm publish -r --no-git-checks`. Publish in dependency order when required (for this repository, publish `@flue/runtime` before packages that depend on it).
-10. Inspect the final diff and stage only release-generated changes, including the changelog, package versions, lockfile updates, and build or prepublish-generated tracked files.
-11. Commit after publication with `git commit -m "chore: release v<VERSION>"`.
-12. Tag that final commit with `git tag v<VERSION>`.
-13. Push the current branch, then push the tag: `git push` followed by `git push --tags`.
+9. Prepare publish artifacts: run `node scripts/prepare-publish.mjs` from the repository root. This copies the docs content into each public package's `docs/` folder (gitignored) and syncs the root `README.md` into the core packages (`@flue/cli`, `@flue/runtime`, `@flue/sdk`).
+10. Publish each public package from its package directory using `pnpm publish -r --no-git-checks`. Publish in dependency order when required (for this repository, publish `@flue/runtime` before packages that depend on it).
+11. Inspect the final diff and stage only release-generated changes, including the changelog, package versions, lockfile updates, and build or prepublish-generated tracked files.
+12. Commit after publication with `git commit -m "chore: release v<VERSION>"`.
+13. Tag that final commit with `git tag v<VERSION>`.
+14. Push the current branch, then push the tag: `git push` followed by `git push --tags`.
 
 ## Guardrails
 
