@@ -15,6 +15,18 @@
 			"entry": ["{src/{app,cloudflare,agents/*,workflows/*},flue.config}.{ts,mts,js,mjs}"],
 			"project": ["src/**/*.{ts,mts,js,mjs}"]
 		},
+		"examples/use-flue-react": {
+			"entry": ["index.html"],
+			"project": ["src/**/*.{ts,tsx}"]
+		},
+		"examples/use-flue-vue": {
+			"entry": ["index.html"],
+			"project": ["src/**/*.ts"]
+		},
+		"examples/use-flue-svelte": {
+			"entry": ["index.html", "src/App.svelte"],
+			"project": ["src/**/*.{ts,svelte}"]
+		},
 
 		"apps/www": {
 			"entry": ["src/homepage-shaders.ts"]

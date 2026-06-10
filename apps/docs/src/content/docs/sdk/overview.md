@@ -18,6 +18,10 @@ const client = createFlueClient({
 
 [`createFlueClient(...)`](/docs/sdk/client/) configures access to a deployed Flue application.
 
+## Browser UI
+
+[`useFlue`](/docs/guide/use-flue/) builds React, Vue, and Svelte interfaces for persistent Flue agent instances.
+
 ## API namespaces
 
 - [`client.agents`](/docs/sdk/agents/) invokes persistent agent instances and streams their events.

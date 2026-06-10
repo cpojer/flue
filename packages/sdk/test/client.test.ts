@@ -33,6 +33,33 @@ describe('createFlueClient', () => {
 		});
 	});
 
+	describe('agents.send()', () => {
+		it('returns the direct submission admission response', async () => {
+			const seen: Request[] = [];
+			const client = createFlueClient({
+				baseUrl: 'https://flue.test',
+				fetch: async (input, init) => {
+					seen.push(new Request(input, init));
+					return Response.json({
+						submissionId: 'direct-1',
+						streamUrl: 'https://flue.test/agents/hello/inst-1',
+						offset: '0000000000000000_0000000000000042',
+					}, { status: 202 });
+				},
+			});
+
+			await expect(client.agents.send('hello', 'inst-1', { message: 'Hello' })).resolves.toEqual({
+				submissionId: 'direct-1',
+				streamUrl: 'https://flue.test/agents/hello/inst-1',
+				offset: '0000000000000000_0000000000000042',
+			});
+			expect(seen).toHaveLength(1);
+			expect(new URL(seen[0]?.url ?? '').pathname).toBe('/agents/hello/inst-1');
+			expect(seen[0]?.method).toBe('POST');
+			expect(await seen[0]?.json()).toEqual({ message: 'Hello' });
+		});
+	});
+
 	describe('agents.stream()', () => {
 		it('constructs the correct stream URL from agent name and id', async () => {
 			const urls: string[] = [];
@@ -54,7 +81,9 @@ describe('createFlueClient', () => {
 			}
 			expect(events).toEqual([{ type: 'idle' }]);
 			expect(urls.length).toBeGreaterThanOrEqual(1);
-			const parsed = new URL(urls[0]!);
+			const url = urls.at(0);
+			if (!url) throw new Error('Expected the stream URL to be requested.');
+			const parsed = new URL(url);
 			expect(parsed.pathname).toBe('/api/agents/my-agent/inst-1');
 			expect(parsed.searchParams.get('offset')).toBe('0000000000000000_0000000000000042');
 		});
@@ -65,7 +94,7 @@ describe('createFlueClient', () => {
 				baseUrl: 'https://flue.test',
 				token: 'test-token-123',
 				headers: { 'x-custom': 'value' },
-				fetch: async (input, init) => {
+				fetch: async (_input, init) => {
 					const h = init?.headers as Record<string, string> | undefined;
 					if (h) seenHeaders.push({ ...h });
 					return dsJsonResponse([]);
@@ -139,6 +168,126 @@ describe('createFlueClient', () => {
 			expect(eventStream.offset).toBe('0000000000000000_0000000000000001');
 		});
 
+		it('exposes complete batches with one safe checkpoint offset', async () => {
+			const client = createFlueClient({
+				baseUrl: 'https://flue.test',
+				fetch: async () =>
+					dsJsonResponse(
+						[
+							{ type: 'text_delta', text: 'hello' },
+							{ type: 'idle' },
+						],
+						{
+							nextOffset: '0000000000000000_0000000000000002',
+							closed: true,
+						},
+					),
+			});
+
+			const eventStream = client.agents.stream('agent', 'id', { live: false });
+			const batches = [];
+			for await (const batch of eventStream.batches()) {
+				batches.push(batch);
+			}
+
+			expect(batches).toEqual([
+				{
+					events: [
+						{ type: 'text_delta', text: 'hello' },
+						{ type: 'idle' },
+					],
+					nextOffset: '0000000000000000_0000000000000002',
+				},
+			]);
+			expect(eventStream.offset).toBe('0000000000000000_0000000000000002');
+		});
+
+		it('yields live batches before the stream session closes', async () => {
+			let requestCount = 0;
+			const client = createFlueClient({
+				baseUrl: 'https://flue.test',
+				fetch: async (_input, init) => {
+					requestCount++;
+					if (requestCount === 1) {
+						return dsJsonResponse([], {
+							nextOffset: '0000000000000000_0000000000000000',
+						});
+					}
+					if (requestCount === 2) {
+						return dsJsonResponse(
+							[
+								{ type: 'text_delta', text: 'hello' },
+								{ type: 'idle' },
+							],
+							{
+								nextOffset: '0000000000000000_0000000000000002',
+							},
+						);
+					}
+					return await new Promise<Response>((_resolve, reject) => {
+						init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+					});
+				},
+			});
+
+			const eventStream = client.agents.stream('agent', 'id');
+			const iterator = eventStream.batches()[Symbol.asyncIterator]();
+
+			await expect(iterator.next()).resolves.toEqual({
+				done: false,
+				value: {
+					events: [
+						{ type: 'text_delta', text: 'hello' },
+						{ type: 'idle' },
+					],
+					nextOffset: '0000000000000000_0000000000000002',
+				},
+			});
+			expect(eventStream.offset).toBe('0000000000000000_0000000000000002');
+			eventStream.cancel();
+			await iterator.return?.();
+		});
+
+		it('yields an initial live catch-up batch without waiting for follow-up polls', async () => {
+			let requestCount = 0;
+			const client = createFlueClient({
+				baseUrl: 'https://flue.test',
+				fetch: async (_input, init) => {
+					requestCount++;
+					if (requestCount === 1) {
+						return dsJsonResponse(
+							[
+								{ type: 'text_delta', text: 'ready' },
+								{ type: 'idle' },
+							],
+							{
+								nextOffset: '0000000000000000_0000000000000002',
+							},
+						);
+					}
+					return await new Promise<Response>((_resolve, reject) => {
+						init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+					});
+				},
+			});
+
+			const eventStream = client.agents.stream('agent', 'id');
+			const iterator = eventStream.batches()[Symbol.asyncIterator]();
+
+			await expect(iterator.next()).resolves.toEqual({
+				done: false,
+				value: {
+					events: [
+						{ type: 'text_delta', text: 'ready' },
+						{ type: 'idle' },
+					],
+					nextOffset: '0000000000000000_0000000000000002',
+				},
+			});
+			eventStream.cancel();
+			await iterator.return?.();
+		});
+
 		it('cancel() stops iteration and aborts the underlying connection', async () => {
 			let fetchCount = 0;
 			let lastSignal: AbortSignal | undefined;
@@ -182,7 +331,9 @@ describe('createFlueClient', () => {
 			}
 			expect(events).toHaveLength(1);
 			expect(events[0]).toMatchObject({ type: 'run_end' });
-			const parsed = new URL(urls[0]!);
+			const url = urls.at(0);
+			if (!url) throw new Error('Expected the run stream URL to be requested.');
+			const parsed = new URL(url);
 			expect(parsed.pathname).toBe('/runs/run-1');
 		});
 	});
@@ -225,9 +376,11 @@ describe('createFlueClient', () => {
 			expect(result.runId).toBe('wf_abc123');
 			expect(result.streamUrl).toBe('https://flue.test/runs/wf_abc123');
 			expect(seen).toHaveLength(1);
-			expect(new URL(seen[0]!.url).pathname).toBe('/workflows/my-workflow');
-			expect(seen[0]!.method).toBe('POST');
-			expect(await seen[0]!.json()).toEqual({ key: 'value' });
+			const request = seen.at(0);
+			if (!request) throw new Error('Expected the workflow invocation to be requested.');
+			expect(new URL(request.url).pathname).toBe('/workflows/my-workflow');
+			expect(request.method).toBe('POST');
+			expect(await request.json()).toEqual({ key: 'value' });
 		});
 
 		it('works without a payload', async () => {

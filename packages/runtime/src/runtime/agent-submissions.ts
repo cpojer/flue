@@ -111,11 +111,16 @@ interface AgentSubmissionObserverRegistry {
 	fail(submissionId: string, error: unknown): void;
 }
 
+export interface AttachedAgentSubmissionReceipt {
+	readonly submissionId: string;
+	readonly acceptedAt: string;
+}
+
 export type AttachedAgentSubmissionAdmission = (
 	payload: DirectAgentPayload,
 	onEvent?: (event: AttachedAgentEvent) => Promise<void> | void,
 	waitForResult?: boolean,
-) => Promise<unknown>;
+) => Promise<unknown | AttachedAgentSubmissionReceipt>;
 
 export function createDispatchAgentSubmissionInput(input: DispatchInput): DispatchAgentSubmissionInput {
 	return { ...input, kind: 'dispatch', submissionId: input.dispatchId };
@@ -453,7 +458,11 @@ function createSubmissionEventCallback(
 ): (event: Record<string, unknown>) => Promise<void> | void {
 	return (event) => {
 		if (event.type === 'run_start' || event.type === 'run_end') return;
-		const attachedEvent = { ...event, instanceId } as AttachedAgentEvent & { runId?: string };
+		const attachedEvent = {
+			...event,
+			instanceId,
+			submissionId,
+		} as AttachedAgentEvent & { runId?: string };
 		delete attachedEvent.runId;
 		return publish(submissionId, attachedEvent);
 	};

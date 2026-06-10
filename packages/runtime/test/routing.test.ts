@@ -50,7 +50,12 @@ describe('flue()', () => {
 				agents: [{ name: 'assistant', transports: { http: true }, created: true }],
 			},
 			createAdmission: {
-				assistant: (id) => async (payload) => ({ instanceId: id, payload }),
+				assistant: (id) => async (payload, _onEvent, waitForResult) => {
+					if (waitForResult === false) {
+						return { submissionId: 'direct-route-1', acceptedAt: '2026-06-10T00:00:00.000Z' };
+					}
+					return { instanceId: id, payload };
+				},
 			},
 			createContext: createTestContext,
 			eventStreamStore: createTestEventStreamStore(),
@@ -70,6 +75,7 @@ describe('flue()', () => {
 		expect(await response.json()).toEqual({
 			streamUrl: 'http://localhost/api/agents/assistant/customer-123',
 			offset: '-1',
+			submissionId: 'direct-route-1',
 		});
 	});
 
@@ -115,11 +121,13 @@ describe('flue()', () => {
 				// Simulates the coordinator: each accepted prompt appends one
 				// event to the agent's durable stream.
 				assistant: (id) => async (payload) => {
+					const submissionId = `direct-${(payload as { message: string }).message}`;
 					await store.appendEvent(agentStreamPath('assistant', id), {
 						type: 'message',
 						text: (payload as { message: string }).message,
+						submissionId,
 					});
-					return undefined;
+					return { submissionId, acceptedAt: '2026-06-10T00:00:00.000Z' };
 				},
 			},
 			createContext: createTestContext,
@@ -140,27 +148,33 @@ describe('flue()', () => {
 		// First prompt on a fresh instance: the captured tail is the start sentinel.
 		const first = await prompt('hello');
 		expect(first.status).toBe(202);
-		const firstBody = (await first.json()) as { streamUrl: string; offset: string };
+		const firstBody = (await first.json()) as { streamUrl: string; offset: string; submissionId: string };
 		expect(firstBody.offset).toBe('-1');
+		expect(firstBody.submissionId).toBe('direct-hello');
 
 		// The accepted streamUrl is immediately readable — not a blank 404.
 		const fullRead = await app.fetch(new Request(firstBody.streamUrl));
 		expect(fullRead.status).toBe(200);
-		expect(await fullRead.json()).toEqual([{ type: 'message', text: 'hello' }]);
+		expect(await fullRead.json()).toEqual([
+			{ type: 'message', text: 'hello', submissionId: 'direct-hello' },
+		]);
 
 		// Second prompt: the captured offset is the real stream tail before
 		// this prompt's first event, not a degenerate constant.
 		const second = await prompt('again');
 		expect(second.status).toBe(202);
-		const secondBody = (await second.json()) as { streamUrl: string; offset: string };
+		const secondBody = (await second.json()) as { streamUrl: string; offset: string; submissionId: string };
 		expect(secondBody.offset).toMatch(/^\d{16}_\d{16}$/);
+		expect(secondBody.submissionId).toBe('direct-again');
 
 		// Reading from that offset returns exactly the second prompt's events.
 		const offsetRead = await app.fetch(
 			new Request(`${secondBody.streamUrl}?offset=${secondBody.offset}`),
 		);
 		expect(offsetRead.status).toBe(200);
-		expect(await offsetRead.json()).toEqual([{ type: 'message', text: 'again' }]);
+		expect(await offsetRead.json()).toEqual([
+			{ type: 'message', text: 'again', submissionId: 'direct-again' },
+		]);
 	});
 
 	it('rejects non-POST agent requests with a method envelope when a path targets an HTTP agent', async () => {
@@ -273,7 +287,12 @@ describe('flue()', () => {
 				agents: [{ name: 'assistant', transports: { http: true }, created: true }],
 			},
 			createAdmission: {
-				assistant: (_id) => async (payload) => ({ payload }),
+				assistant: (_id) => async (payload, _onEvent, waitForResult) => {
+					if (waitForResult === false) {
+						return { submissionId: 'direct-middleware-1', acceptedAt: '2026-06-10T00:00:00.000Z' };
+					}
+					return { payload };
+				},
 			},
 			agentRouteMiddleware: {
 				assistant: async (c, next) => {
@@ -301,6 +320,7 @@ describe('flue()', () => {
 		expect(await response.json()).toEqual({
 			streamUrl: 'http://localhost/api/agents/assistant/customer-123',
 			offset: '-1',
+			submissionId: 'direct-middleware-1',
 		});
 		expect(inspected).toBe('Bearer test-token:/api/agents/assistant/customer-123');
 	});
@@ -565,7 +585,12 @@ describe('createDefaultFlueApp()', () => {
 				agents: [{ name: 'assistant', transports: { http: true }, created: true }],
 			},
 			createAdmission: {
-				assistant: (id) => async (payload) => ({ instanceId: id, payload }),
+				assistant: (id) => async (payload, _onEvent, waitForResult) => {
+					if (waitForResult === false) {
+						return { submissionId: 'direct-default-1', acceptedAt: '2026-06-10T00:00:00.000Z' };
+					}
+					return { instanceId: id, payload };
+				},
 			},
 			createContext: createTestContext,
 			eventStreamStore: createTestEventStreamStore(),
@@ -584,6 +609,7 @@ describe('createDefaultFlueApp()', () => {
 		expect(await response.json()).toEqual({
 			streamUrl: 'http://localhost/agents/assistant/customer-123',
 			offset: '-1',
+			submissionId: 'direct-default-1',
 		});
 	});
 

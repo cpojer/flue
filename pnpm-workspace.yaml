@@ -12,6 +12,8 @@ allowBuilds:
   workerd: false
 minimumReleaseAge: 1440
 resolutionMode: highest
+overrides:
+  typescript: 6.0.3
 minimumReleaseAgeExclude:
   - '@aws-sdk/*'
   - '@smithy/*'

@@ -141,7 +141,9 @@ export function createNodeAgentCoordinator(options: {
 			// createStream is called before processSubmission (see spawnSubmissionTask).
 			const streamPath = agentStreamPath(input.agent, input.id);
 			ctx.subscribeEvent((event) => {
-				eventStreamStore.appendEvent(streamPath, event).catch((error) => {
+				const attachedEvent =
+					input.kind === 'direct' ? { ...event, submissionId: input.submissionId } : event;
+				eventStreamStore.appendEvent(streamPath, attachedEvent).catch((error) => {
 					console.error('[flue:event-stream] appendEvent failed:', error);
 				});
 			});
@@ -437,7 +439,9 @@ export function createNodeAgentCoordinator(options: {
 					// resolves when processSubmission settles or fails this submission.
 					ensureClaimLoop();
 					wake();
-					if (!waitForResult) return undefined;
+					if (!waitForResult) {
+						return { submissionId: input.submissionId, acceptedAt: input.acceptedAt };
+					}
 					return await attachment.completion;
 				} catch (error) {
 					// If admission itself fails (before the claim loop could

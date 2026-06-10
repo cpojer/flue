@@ -1,0 +1,19 @@
+{
+	"name": "use-flue-svelte-demo",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "vite --host 127.0.0.1",
+		"build": "vite build",
+		"check:types": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@flue/svelte": "workspace:*",
+		"@sveltejs/vite-plugin-svelte": "^7.1.2",
+		"svelte": "^5.55.9",
+		"vite": "^8.0.14"
+	},
+	"devDependencies": {
+		"typescript": "^6.0.3"
+	}
+}

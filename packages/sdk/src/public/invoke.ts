@@ -6,6 +6,7 @@ export interface AgentPromptOptions {
 }
 
 export type AgentPromptResult = { result: unknown; streamUrl: string; offset: string };
+export type AgentSendResult = { submissionId: string; streamUrl: string; offset: string };
 
 export async function promptAgent(
 	http: HttpClient,
@@ -27,7 +28,7 @@ export async function sendAgent(
 	name: string,
 	id: string,
 	options: AgentPromptOptions,
-): Promise<{ streamUrl: string; offset: string }> {
+): Promise<AgentSendResult> {
 	return http.json({
 		method: 'POST',
 		path: `/agents/${encodeURIComponent(name)}/${encodeURIComponent(id)}`,

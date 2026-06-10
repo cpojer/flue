@@ -13,7 +13,10 @@ import type {
 	FlueEvent,
 	FlueEventCallback,
 } from '../types.ts';
-import type { AttachedAgentSubmissionAdmission } from './agent-submissions.ts';
+import type {
+	AttachedAgentSubmissionAdmission,
+	AttachedAgentSubmissionReceipt,
+} from './agent-submissions.ts';
 import type { DispatchInput } from './dispatch-queue.ts';
 import { agentStreamPath, parseOffset, runStreamPath, type EventStreamStore } from './event-stream-store.ts';
 
@@ -142,13 +145,29 @@ export async function handleAgentRequest(opts: HandleAgentOptions): Promise<Resp
 		if (new URL(request.url).searchParams.get('wait') === 'result') {
 			return runDirectSyncMode(directOptions, streamUrl, offset);
 		}
-		await opts.admitAttachedSubmission(payload, undefined, false);
-		return new Response(JSON.stringify({ streamUrl, offset }), {
+		const admission = await opts.admitAttachedSubmission(payload, undefined, false);
+		assertAttachedAgentSubmissionReceipt(admission);
+		return new Response(JSON.stringify({ streamUrl, offset, submissionId: admission.submissionId }), {
 			status: 202,
 			headers: { 'content-type': 'application/json' },
 		});
 	} catch (err) {
 		return toHttpResponse(err);
+	}
+}
+
+function assertAttachedAgentSubmissionReceipt(
+	value: unknown,
+): asserts value is AttachedAgentSubmissionReceipt {
+	if (
+		!value ||
+		typeof value !== 'object' ||
+		typeof (value as { submissionId?: unknown }).submissionId !== 'string' ||
+		(value as { submissionId: string }).submissionId.trim() === '' ||
+		typeof (value as { acceptedAt?: unknown }).acceptedAt !== 'string' ||
+		(value as { acceptedAt: string }).acceptedAt.trim() === ''
+	) {
+		throw new Error('[flue] Internal direct agent admission did not return a submission receipt.');
 	}
 }
 
@@ -852,5 +871,4 @@ function serializeError(error: unknown): unknown {
  */
 const defaultStartWorkflowAdmission: StartWorkflowAdmissionFn = (_runId, run) =>
 	Promise.resolve().then(run);
-
 

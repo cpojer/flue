@@ -6,8 +6,8 @@
  * and SSE live tailing.
  */
 
+import type { BackoffOptions, JsonBatch, LiveMode } from '@durable-streams/client';
 import { stream } from '@durable-streams/client';
-import type { BackoffOptions, LiveMode } from '@durable-streams/client';
 import type { FlueEvent } from '../types.ts';
 
 /** Options for streaming Flue events from an agent instance or workflow run. */
@@ -22,6 +22,11 @@ export interface FlueStreamOptions {
 	backoffOptions?: BackoffOptions;
 }
 
+export interface FlueEventBatch<T = FlueEvent> {
+	readonly events: ReadonlyArray<T>;
+	readonly nextOffset: string;
+}
+
 /**
  * Async iterable of Flue events backed by a Durable Streams connection.
  *
@@ -31,6 +36,11 @@ export interface FlueStreamOptions {
 export interface FlueEventStream<T = FlueEvent> extends AsyncIterable<T> {
 	/** Cancel the stream and abort the underlying connection. */
 	cancel(reason?: unknown): void;
+	/**
+	 * Iterates complete Durable Streams response batches. `nextOffset` is safe
+	 * to checkpoint only after every event in the batch has been processed.
+	 */
+	batches(): AsyncIterable<FlueEventBatch<T>>;
 	/**
 	 * Resume offset of the most recently fetched batch (the server's
 	 * `Stream-Next-Offset`). Advances per HTTP response, not per delivered
@@ -71,13 +81,14 @@ export function createFlueEventStream<T = FlueEvent>(
 	// remove it when the stream completes naturally (avoids retaining the
 	// closure scope on long-lived AbortSignals).
 	let removeExternalAbortListener: (() => void) | undefined;
-	if (streamOpts.signal) {
-		if (streamOpts.signal.aborted) {
-			abortController.abort(streamOpts.signal.reason);
+	const externalSignal = streamOpts.signal;
+	if (externalSignal) {
+		if (externalSignal.aborted) {
+			abortController.abort(externalSignal.reason);
 		} else {
-			const onAbort = () => abortController.abort(streamOpts.signal!.reason);
-			streamOpts.signal.addEventListener('abort', onAbort, { once: true });
-			removeExternalAbortListener = () => streamOpts.signal!.removeEventListener('abort', onAbort);
+			const onAbort = () => abortController.abort(externalSignal.reason);
+			externalSignal.addEventListener('abort', onAbort, { once: true });
+			removeExternalAbortListener = () => externalSignal.removeEventListener('abort', onAbort);
 		}
 	}
 
@@ -107,50 +118,61 @@ export function createFlueEventStream<T = FlueEvent>(
 		removeExternalAbortListener?.();
 	};
 
-	// Reader is initialized lazily on the first next() call.
-	let reader: ReadableStreamDefaultReader<T> | undefined;
-	let readerDone = false;
+	let consumed = false;
 	let currentOffset = streamOpts.offset ?? '-1';
+
+	const claimStream = () => {
+		if (consumed) {
+			throw new Error('[flue-sdk] A stream can only be consumed once.');
+		}
+		consumed = true;
+	};
+
+	const batches = (): AsyncIterable<FlueEventBatch<T>> => createBatchIterable({
+		claimStream,
+		connect,
+		cancel,
+		abortSignal: abortController.signal,
+		live: streamOpts.live ?? true,
+		removeExternalAbortListener: () => removeExternalAbortListener?.(),
+		setOffset(offset) {
+			currentOffset = offset;
+		},
+	});
+
+	let eventReader: ReadableStreamDefaultReader<T> | undefined;
+	let eventReaderDone = false;
 
 	const iterator: AsyncIterator<T> = {
 		async next(): Promise<IteratorResult<T>> {
 			if (abortController.signal.aborted) {
-				readerDone = true;
 				removeExternalAbortListener?.();
-				return { value: undefined as T, done: true };
-			}
-
-			if (!reader) {
-				try {
-					const res = await connect();
-					currentOffset = res.offset;
-					reader = res.jsonStream().getReader();
-				} catch (err) {
-					if (abortController.signal.aborted || isAbortError(err)) {
-						readerDone = true;
-						removeExternalAbortListener?.();
-						return { value: undefined as T, done: true };
-					}
-					throw err;
-				}
-			}
-
-			if (readerDone) {
 				return { value: undefined as T, done: true };
 			}
 
 			try {
-				const { value, done } = await reader.read();
-				if (responsePromise) currentOffset = (await responsePromise).offset;
+				if (!eventReader) {
+					claimStream();
+					const res = await connect();
+					currentOffset = res.offset;
+					eventReader = res.jsonStream().getReader();
+				}
+
+				if (eventReaderDone) {
+					return { value: undefined as T, done: true };
+				}
+
+				const { value, done } = await eventReader.read();
 				if (done) {
-					readerDone = true;
+					eventReaderDone = true;
 					removeExternalAbortListener?.();
 					return { value: undefined as T, done: true };
 				}
+				if (responsePromise) {
+					currentOffset = (await responsePromise).offset;
+				}
 				return { value, done: false };
 			} catch (err) {
-				readerDone = true;
-				removeExternalAbortListener?.();
 				if (abortController.signal.aborted || isAbortError(err)) {
 					return { value: undefined as T, done: true };
 				}
@@ -158,23 +180,131 @@ export function createFlueEventStream<T = FlueEvent>(
 			}
 		},
 		async return(): Promise<IteratorResult<T>> {
-			readerDone = true;
-			// cancel() on an errored stream returns a rejected promise — swallow
-			// it so a consumer breaking out of the loop can't trigger an
-			// unhandled rejection.
-			try { void reader?.cancel().catch(() => {}); } catch { /* ignore */ }
 			cancel();
+			try { await eventReader?.cancel(); } catch { /* ignore */ }
 			return { value: undefined as T, done: true };
 		},
 	};
 
 	return {
+		batches,
 		cancel,
 		get offset() {
 			return currentOffset;
 		},
 		[Symbol.asyncIterator]() {
 			return iterator;
+		},
+	};
+}
+
+function createBatchIterable<T>({
+	claimStream,
+	connect,
+	cancel,
+	abortSignal,
+	live,
+	removeExternalAbortListener,
+	setOffset,
+}: {
+	claimStream(): void;
+	connect(): Promise<{
+		readonly closed: Promise<void>;
+		readonly offset: string;
+		readonly streamClosed: boolean;
+		json<U = T>(): Promise<Array<U>>;
+		subscribeJson<U = T>(subscriber: (batch: JsonBatch<U>) => void | Promise<void>): () => void;
+	}>;
+	cancel(reason?: unknown): void;
+	abortSignal: AbortSignal;
+	live: LiveMode;
+	removeExternalAbortListener(): void;
+	setOffset(offset: string): void;
+}): AsyncIterable<FlueEventBatch<T>> {
+	return {
+		async *[Symbol.asyncIterator]() {
+			claimStream();
+			if (abortSignal.aborted) {
+				removeExternalAbortListener();
+				return;
+			}
+
+			const queue: Array<FlueEventBatch<T>> = [];
+			let wake: (() => void) | undefined;
+			let done = false;
+			let error: unknown;
+			let unsubscribe: (() => void) | undefined;
+
+			const notify = () => {
+				wake?.();
+				wake = undefined;
+			};
+
+			try {
+				const res = await connect();
+				if (live === false) {
+					const events = await res.json<T>();
+					setOffset(res.offset);
+					if (events.length > 0) {
+						yield { events, nextOffset: res.offset };
+					}
+					return;
+				}
+
+				if (res.streamClosed) {
+					const events = await res.json<T>();
+					setOffset(res.offset);
+					if (events.length > 0) {
+						yield { events, nextOffset: res.offset };
+					}
+					return;
+				}
+
+				unsubscribe = res.subscribeJson<T>((batch) => {
+					setOffset(batch.offset);
+					if (batch.items.length > 0) {
+						queue.push({ events: batch.items, nextOffset: batch.offset });
+					}
+					if (batch.streamClosed) {
+						done = true;
+					}
+					notify();
+				});
+				void res.closed.then(
+					() => {
+						queueMicrotask(() => {
+							done = true;
+							notify();
+						});
+					},
+					(reason) => {
+						queueMicrotask(() => {
+							error = reason;
+							notify();
+						});
+					},
+				);
+
+				while (true) {
+					while (queue.length > 0) {
+						const batch = queue.shift();
+						if (batch) yield batch;
+					}
+					if (done || abortSignal.aborted) return;
+					if (error) throw error;
+					await new Promise<void>((resolve) => {
+						wake = resolve;
+					});
+				}
+			} catch (err) {
+				if (abortSignal.aborted || isAbortError(err)) return;
+				throw err;
+			} finally {
+				done = true;
+				unsubscribe?.();
+				cancel();
+				removeExternalAbortListener();
+			}
 		},
 	};
 }

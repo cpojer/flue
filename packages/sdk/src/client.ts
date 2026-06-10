@@ -3,6 +3,7 @@ import { HttpClient, type HttpClientOptions, type RequestHeaders } from './http.
 export type { HttpClientOptions } from './http.ts';
 import {
 	type AgentPromptOptions,
+	type AgentSendResult,
 	promptAgent,
 	sendAgent,
 	type AgentPromptResult,
@@ -60,7 +61,7 @@ export interface FlueClient {
 	agents: {
 		/** Resolves the terminal result for one agent prompt. */
 		prompt(name: string, id: string, options: AgentPromptOptions): Promise<AgentPromptResult>;
-		send(name: string, id: string, options: AgentPromptOptions): Promise<{ streamUrl: string; offset: string }>;
+		send(name: string, id: string, options: AgentPromptOptions): Promise<AgentSendResult>;
 		/** Stream events from an agent instance via the Durable Streams protocol. */
 		stream(name: string, id: string, options?: FlueStreamOptions): FlueEventStream<AttachedAgentEvent>;
 	};

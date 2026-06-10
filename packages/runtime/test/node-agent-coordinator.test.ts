@@ -13,6 +13,7 @@ import { createNodeAgentExecutionStore } from '../src/node/agent-execution-store
 import { createNodeAgentCoordinator, type NodeAgentCoordinator } from '../src/node/agent-coordinator.ts';
 import type { CreateContextFn } from '../src/runtime/handle-agent.ts';
 import type { AgentExecutionStore } from '../src/agent-execution-store.ts';
+import { agentStreamPath } from '../src/runtime/event-stream-store.ts';
 import { createSessionStorageKey } from '../src/session-identity.ts';
 import { generateSessionAffinityKey } from '../src/runtime/ids.ts';
 import { createNoopSessionEnv } from './fixtures/session-env.ts';
@@ -144,19 +145,24 @@ function createFauxCoordinator(
 	dbPath: string,
 	provider: FauxProviderRegistration,
 	durability?: { retry?: number; timeout?: number },
-): { coordinator: NodeAgentCoordinator; executionStore: AgentExecutionStore } {
+): {
+	coordinator: NodeAgentCoordinator;
+	executionStore: AgentExecutionStore;
+	eventStreamStore: ReturnType<typeof createTestEventStreamStore>;
+} {
 	const executionStore = createNodeAgentExecutionStore(dbPath);
 	const agent = createAgent(() => ({
 		model: `${provider.getModel().provider}/${provider.getModel().id}`,
 		durability,
 	}));
+	const eventStreamStore = createTestEventStreamStore();
 	const coordinator = createNodeAgentCoordinator({
 		submissions: executionStore.submissions,
 		agents: { assistant: agent },
 		createContext: makeFauxCreateContext(provider, executionStore),
-		eventStreamStore: createTestEventStreamStore(),
+		eventStreamStore,
 	});
-	return { coordinator, executionStore };
+	return { coordinator, executionStore, eventStreamStore };
 }
 
 // ---------------------------------------------------------------------------
@@ -725,8 +731,38 @@ leaseExpiresAt: 1,
 			for (const event of events) {
 				const e = event as Record<string, unknown>;
 				expect(e.instanceId).toBe('instance-1');
+				expect(typeof e.submissionId).toBe('string');
 				expect(e).not.toHaveProperty('runId');
 			}
+		});
+
+		it('returns direct admission receipts and attributes persisted stream events', async () => {
+			const dbPath = createTempDbPath();
+			const provider = createFauxProvider();
+			provider.setResponses([fauxAssistantMessage('Receipt reply.')]);
+			const { coordinator, eventStreamStore } = createFauxCoordinator(dbPath, provider);
+
+			const admit = coordinator.createAdmission('assistant', 'instance-1');
+			const receipt = await admit({ message: 'Hello receipt' }, undefined, false);
+
+			expect(receipt).toEqual({
+				submissionId: expect.any(String),
+				acceptedAt: expect.any(String),
+			});
+			await coordinator.waitForIdle();
+
+			const result = await eventStreamStore.readEvents(agentStreamPath('assistant', 'instance-1'), {
+				offset: '-1',
+			});
+			const events = result.events.map((event) => event.data);
+			expect(events.length).toBeGreaterThan(0);
+			expect(events).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						submissionId: (receipt as { submissionId: string }).submissionId,
+					}),
+				]),
+			);
 		});
 
 		it('queues concurrent same-session direct prompts instead of rejecting', async () => {

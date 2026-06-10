@@ -1098,6 +1098,7 @@ export type AttachedAgentEvent = Exclude<
 > & {
 	runId?: never;
 	instanceId: string;
+	submissionId?: string;
 };
 
 export type FlueEventCallback = (event: FlueEvent) => void | Promise<void>;

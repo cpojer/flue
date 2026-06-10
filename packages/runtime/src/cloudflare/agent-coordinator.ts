@@ -442,7 +442,11 @@ class CloudflareAgentCoordinator {
 				const ctx = this.createContext(payload, submissionSyntheticRequest(submission.input), undefined, dispatchId);
 				const streamPath = agentStreamPath(this.agentName, this.instance.name);
 				ctx.subscribeEvent((event) => {
-					eventStreamStore.appendEvent(streamPath, event).catch((error) => {
+					const attachedEvent =
+						submission.input.kind === 'direct'
+							? { ...event, submissionId: submission.input.submissionId }
+							: event;
+					eventStreamStore.appendEvent(streamPath, attachedEvent).catch((error) => {
 						console.error('[flue:event-stream] appendEvent failed:', error);
 					});
 				});
@@ -478,7 +482,9 @@ class CloudflareAgentCoordinator {
 			await this.armSubmissionWake();
 			await this.submissions.admitDirect(input);
 			await this.reconcileSubmissions({ driverAlreadyArmed: true });
-			if (!waitForResult) return undefined;
+			if (!waitForResult) {
+				return { submissionId: input.submissionId, acceptedAt: input.acceptedAt };
+			}
 			return await attachment.completion;
 		} catch (error) {
 			// If admission or reconciliation fails before the claim loop
@@ -530,5 +536,3 @@ function submissionAttemptMarkerKey(submission: AgentSubmission): string {
 function isInternalDispatchRequest(request: Request): boolean {
 	return request.method === 'POST' && new URL(request.url).pathname === CLOUDFLARE_AGENT_INTERNAL_DISPATCH_PATH;
 }
-
-

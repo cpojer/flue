@@ -269,6 +269,6 @@ export type AttachedAgentEvent = Exclude<
 > & {
 	runId?: never;
 	instanceId: string;
+	submissionId?: string;
 };
-
 

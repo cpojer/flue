@@ -12,6 +12,7 @@ export { FlueApiError } from './http.ts';
 export type {
 	AgentPromptOptions,
 	AgentPromptResult,
+	AgentSendResult,
 } from './public/invoke.ts';
 export {
 	DurableStreamError,
@@ -23,6 +24,7 @@ export {
 } from '@durable-streams/client';
 export type { BackoffOptions, LiveMode } from '@durable-streams/client';
 export type {
+	FlueEventBatch,
 	FlueEventStream,
 	FlueStreamOptions,
 } from './public/stream.ts';
