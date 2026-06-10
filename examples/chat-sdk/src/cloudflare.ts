@@ -1,16 +1,12 @@
 import { createGitHubAdapter } from '@chat-adapter/github';
-import {
-	type ChatSdkChannelEvent,
-	createChatSdkChannel,
-} from '@flue/runtime/channel/chat-sdk';
-import {
-	createFlueChatSdkState,
-	FlueChatSdkStateAgent,
-} from '@flue/runtime/channel/chat-sdk/cloudflare';
+import { dispatch } from '@flue/runtime';
 import { Agent } from 'agents';
+import { ChatSdkStateAgent, createChatSdkState } from 'agents/chat-sdk';
 import { Chat } from 'chat';
 import assistant from './agents/assistant.ts';
 import { ChatSdkExampleTestSupport } from './test-support.ts';
+
+class FlueChatSdkStateAgent extends ChatSdkStateAgent {}
 
 export { FlueChatSdkStateAgent };
 
@@ -45,8 +41,8 @@ export class ChatIngressAgent extends Agent<Env> {
 			if (channel instanceof Error) {
 				return new Response(channel.message, { status: 500 });
 			}
-			return channel.route('github')(request, {
-				waitUntil: (task) => this.ctx.waitUntil(task),
+			return channel.route(request, {
+				waitUntil: (task: Promise<unknown>) => this.ctx.waitUntil(task),
 			});
 		}
 		return new Response('Not found', { status: 404 });
@@ -64,20 +60,54 @@ export class ChatIngressAgent extends Agent<Env> {
 				}),
 			},
 			concurrency: 'queue',
-			state: createFlueChatSdkState(),
+			state: createChatSdkState({ agent: FlueChatSdkStateAgent }),
 			userName: 'flue-bot',
 		});
 
-		return createChatSdkChannel({
-			agent: assistant,
-			bot,
-			identity: (event) => {
-				const threadId = event.kind === 'action' ? event.action.threadId : event.thread.id;
-				return { id: threadId };
-			},
-			input: (event) => toAgentInput(event),
-			logger: console,
+		bot.onNewMention(async (thread, message, context) => {
+			await thread.subscribe();
+			await safelyStartTyping(thread);
+			const event: ChatSdkChannelEvent = {
+				context,
+				kind: 'new_mention',
+				message,
+				thread,
+			};
+			const target = { id: thread.id };
+			await thread.setState({ _flue: target } as never);
+			await dispatchChatSdkEvent(event, target.id);
 		});
+
+		bot.onSubscribedMessage(async (thread, message, context) => {
+			await safelyStartTyping(thread);
+			const event: ChatSdkChannelEvent = {
+				context,
+				kind: 'subscribed_message',
+				message,
+				thread,
+			};
+			const state = await thread.state as { _flue?: { id: string } } | undefined;
+			await dispatchChatSdkEvent(event, state?._flue?.id ?? thread.id);
+		});
+
+		bot.onAction(async (action) => {
+			const event: ChatSdkChannelEvent = {
+				action,
+				kind: 'action',
+				thread: action.thread,
+			};
+			const state = action.thread
+				? await (action.thread.state as Promise<{ _flue?: { id: string } } | undefined>)
+				: undefined;
+			await dispatchChatSdkEvent(event, state?._flue?.id ?? action.threadId);
+		});
+
+		return {
+			bot,
+			route(request: Request, options: { waitUntil: (task: Promise<unknown>) => void }) {
+				return bot.webhooks.github(request, options);
+			},
+		};
 	}
 
 	private async deliver(request: Request): Promise<Response> {
@@ -119,6 +149,30 @@ export class ChatIngressAgent extends Agent<Env> {
 	}
 }
 
+type ChatSdkChannelEvent =
+	| {
+			readonly action: any;
+			readonly kind: 'action';
+			readonly thread?: any;
+	  }
+	| {
+			readonly context?: unknown;
+			readonly kind: 'new_mention' | 'subscribed_message';
+			readonly message: any;
+			readonly thread: any;
+	  };
+
+async function dispatchChatSdkEvent(event: ChatSdkChannelEvent, id: string): Promise<void> {
+	console.info('[chat-sdk-example]', {
+		agentInstanceId: id,
+		event: event.kind,
+	});
+	await dispatch(assistant, {
+		id,
+		input: toAgentInput(event),
+	});
+}
+
 function toAgentInput(event: ChatSdkChannelEvent): Record<string, unknown> {
 	if (event.kind === 'action') {
 		return {
@@ -137,4 +191,12 @@ function toAgentInput(event: ChatSdkChannelEvent): Record<string, unknown> {
 		type: 'chat.message',
 		userId: event.message.author.userId,
 	};
+}
+
+async function safelyStartTyping(thread: { startTyping?: () => Promise<void> | void }): Promise<void> {
+	try {
+		await thread.startTyping?.();
+	} catch (error) {
+		console.warn('[chat-sdk-example] Failed to start typing indicator.', error);
+	}
 }

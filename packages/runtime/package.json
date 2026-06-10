@@ -37,14 +37,6 @@
       "types": "./dist/cloudflare/index.d.mts",
       "import": "./dist/cloudflare/index.mjs"
     },
-    "./channel/chat-sdk": {
-      "types": "./dist/channel/chat-sdk.d.mts",
-      "import": "./dist/channel/chat-sdk.mjs"
-    },
-    "./channel/chat-sdk/cloudflare": {
-      "types": "./dist/channel/chat-sdk/cloudflare.d.mts",
-      "import": "./dist/channel/chat-sdk/cloudflare.mjs"
-    },
     "./node": {
       "types": "./dist/node/index.d.mts",
       "import": "./dist/node/index.mjs"
@@ -84,21 +76,16 @@
     "@types/js-yaml": "^4.0.9",
     "@types/ws": "^8.18.1",
     "agents": "^0.15.0",
-    "chat": "^4.30.0",
     "tsdown": "^0.22.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.14",
     "vitest": "^4.1.6"
   },
   "peerDependencies": {
-    "agents": "^0.15.0",
-    "chat": "^4.30.0"
+    "agents": "^0.15.0"
   },
   "peerDependenciesMeta": {
     "agents": {
-      "optional": true
-    },
-    "chat": {
       "optional": true
     }
   },

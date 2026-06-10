@@ -4,7 +4,7 @@ description: Use Durable Object-backed Chat SDK state with Flue agents on the Cl
 lastReviewedAt: 2026-06-10
 ---
 
-The Chat SDK channel adapter works anywhere your app can receive webhooks and keep Chat SDK state. Use this Cloudflare setup when you want Chat SDK's chat-side state backed by Durable Objects while Flue owns agent execution.
+Chat SDK works anywhere your app can receive webhooks and keep Chat SDK state. Use this Cloudflare setup when you want Chat SDK's chat-side state backed by Durable Objects while Flue owns agent execution.
 
 ## Install the optional packages
 
@@ -22,14 +22,13 @@ Put Chat SDK webhook handling in an authored Cloudflare entrypoint. Create `src/
 
 ```ts title="src/cloudflare.ts"
 import { createGitHubAdapter } from "@chat-adapter/github";
-import { createChatSdkChannel, type ChatSdkChannelEvent } from "@flue/runtime/channel/chat-sdk";
-import {
-  FlueChatSdkStateAgent,
-  createFlueChatSdkState,
-} from "@flue/runtime/channel/chat-sdk/cloudflare";
+import { dispatch } from "@flue/runtime";
 import { Agent } from "agents";
+import { ChatSdkStateAgent, createChatSdkState } from "agents/chat-sdk";
 import { Chat } from "chat";
 import assistant from "./agents/assistant.ts";
+
+class FlueChatSdkStateAgent extends ChatSdkStateAgent {}
 
 export { FlueChatSdkStateAgent };
 
@@ -44,7 +43,7 @@ export class ChatIngressAgent extends Agent<Env> {
     const url = new URL(request.url);
 
     if (request.method === "POST" && url.pathname === "/webhooks/github") {
-      return this.channel!.route("github")(request, {
+      return this.channel!.bot.webhooks.github(request, {
         waitUntil: (task) => this.ctx.waitUntil(task),
       });
     }
@@ -69,17 +68,33 @@ export class ChatIngressAgent extends Agent<Env> {
         }),
       },
       concurrency: "queue",
-      state: createFlueChatSdkState(),
+      state: createChatSdkState({ agent: FlueChatSdkStateAgent }),
     });
 
-    return createChatSdkChannel({
-      agent: assistant,
-      bot,
-      input: toAgentInput,
-      identity: (event) => ({
-        id: event.kind === "action" ? event.action.threadId : event.thread.id,
-      }),
+    bot.onNewMention(async (thread, message, context) => {
+      await thread.subscribe();
+      await thread.startTyping?.();
+      const event = { kind: "new_mention" as const, thread, message, context };
+      await thread.setState({ _flue: { id: thread.id } });
+      await dispatch(assistant, { id: thread.id, input: toAgentInput(event) });
     });
+
+    bot.onSubscribedMessage(async (thread, message, context) => {
+      await thread.startTyping?.();
+      const event = { kind: "subscribed_message" as const, thread, message, context };
+      const state = await thread.state as { _flue?: { id: string } } | undefined;
+      await dispatch(assistant, { id: state?._flue?.id ?? thread.id, input: toAgentInput(event) });
+    });
+
+    bot.onAction(async (action) => {
+      const event = { kind: "action" as const, action, thread: action.thread };
+      const state = action.thread
+        ? await action.thread.state as { _flue?: { id: string } } | undefined
+        : undefined;
+      await dispatch(assistant, { id: state?._flue?.id ?? action.threadId, input: toAgentInput(event) });
+    });
+
+    return { bot };
   }
 }
 
@@ -88,7 +103,7 @@ type Env = {
   GITHUB_WEBHOOK_SECRET: string;
 };
 
-function toAgentInput(event: ChatSdkChannelEvent): Record<string, unknown> {
+function toAgentInput(event: any): Record<string, unknown> {
   if (event.kind === "action") {
     return {
       type: "chat.action",
@@ -109,7 +124,7 @@ function toAgentInput(event: ChatSdkChannelEvent): Record<string, unknown> {
 }
 ```
 
-`createFlueChatSdkState()` must be created inside an Agents SDK `Agent` context. The `ChatIngressAgent` provides that parent context, and `FlueChatSdkStateAgent` is used as a sub-agent for Chat SDK's subscription, lock, queue, and cache state.
+`createChatSdkState()` must be created inside an Agents SDK `Agent` context. The `ChatIngressAgent` provides that parent context, and `FlueChatSdkStateAgent` is used as a sub-agent for Chat SDK's subscription, lock, queue, and cache state.
 
 ## Forward the webhook route
 
@@ -136,7 +151,7 @@ app.route("/", flue());
 export default app;
 ```
 
-The webhook provider still calls your application URL. The application decides which Durable Object owns chat ingress, and the channel decides which Flue agent instance receives each accepted event.
+The webhook provider still calls your application URL. The application decides which Durable Object owns chat ingress, and your Chat SDK event handlers decide which Flue agent instance receives each accepted event.
 
 ## Reply through a tool
 

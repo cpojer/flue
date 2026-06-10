@@ -8,7 +8,7 @@ flow.
 signed GitHub issue_comment webhook
   -> ChatIngressAgent
   -> Chat SDK GitHub adapter + agents/chat-sdk state
-  -> createChatSdkChannel(...)
+  -> Chat SDK event handler
   -> Flue dispatch(assistant, ...)
   -> Flue agent tool
   -> ChatIngressAgent delivery
@@ -17,9 +17,7 @@ signed GitHub issue_comment webhook
 ```
 
 The fixture uses a scripted model provider so its end-to-end test is local and
-deterministic. Chat SDK state is backed by Flue's optional
-`@flue/runtime/channel/chat-sdk/cloudflare` helper, which wraps
-`agents/chat-sdk`.
+deterministic. Chat SDK state is backed directly by `agents/chat-sdk`.
 
 The test demonstrates a minimal human-in-the-loop flow:
 
