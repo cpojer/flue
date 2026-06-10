@@ -16,6 +16,7 @@ import {
 	useActionState,
 	useContext,
 	useEffect,
+	useEffectEvent,
 	useMemo,
 	useState,
 	useSyncExternalStore,
@@ -104,6 +105,17 @@ export function useFlue(options: FlueAgentControllerOptions): ReactUseFlueResult
 		onEvent,
 		reduceEvent,
 	} = options;
+	const onEventEffect = useEffectEvent<NonNullable<FlueAgentControllerOptions['onEvent']>>((event) => {
+		onEvent?.(event);
+	});
+	const reduceEventEffect = useEffectEvent<NonNullable<FlueAgentControllerOptions['reduceEvent']>>(
+		(snapshot, event) => {
+			if (!reduceEvent) return snapshot;
+			return reduceEvent(snapshot, event);
+		},
+	);
+	const hasOnEvent = Boolean(onEvent);
+	const hasReduceEvent = Boolean(reduceEvent);
 	useEffect(
 		() =>
 			binding.connect(appClient, {
@@ -123,8 +135,8 @@ export function useFlue(options: FlueAgentControllerOptions): ReactUseFlueResult
 				autoConnect,
 				live,
 				sendPolicy,
-				onEvent,
-				reduceEvent,
+				onEvent: hasOnEvent ? onEventEffect : undefined,
+				reduceEvent: hasReduceEvent ? reduceEventEffect : undefined,
 			}),
 		[
 			binding,
@@ -145,8 +157,8 @@ export function useFlue(options: FlueAgentControllerOptions): ReactUseFlueResult
 			autoConnect,
 			live,
 			sendPolicy,
-			onEvent,
-			reduceEvent,
+			hasOnEvent,
+			hasReduceEvent,
 		],
 	);
 

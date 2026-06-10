@@ -61,10 +61,7 @@ export function useFlue(options: FlueAgentControllerOptions): SvelteFlueAgent {
 	};
 	const snapshot = readable(controller.getSnapshot(), (set) => {
 		const unsubscribe = controller.subscribe(() => set(controller.getSnapshot()));
-		return () => {
-			unsubscribe();
-			release();
-		};
+		return unsubscribe;
 	});
 
 	onDestroy(release);

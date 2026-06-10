@@ -200,8 +200,6 @@ type ControllerConfig = {
 
 const DEFAULT_BASE_URL = '/api';
 const DEFAULT_INITIAL_OFFSET = 'now';
-let nextClientEventId = 0;
-let nextBatchId = 0;
 let nextOperationId = 0;
 
 export function createFlueAppClient(options: FlueAppClientOptions = {}): FlueAppClient {
@@ -302,6 +300,34 @@ export function defaultFlueAgentReducer(
 	let messages = snapshot.messages;
 	let text = snapshot.text;
 
+	if (event.type === 'message_end') {
+		const message = event.message;
+		if (isAgentMessage(message, 'user')) {
+			const messageText = agentMessageText(message);
+			const last = messages.at(-1);
+			if (last?.role === 'user' && last.text === messageText && last.eventIds.length === 0) {
+				messages = [
+					...messages.slice(0, -1),
+					{
+						...last,
+						eventIds: [clientEvent.id],
+					},
+				];
+			} else {
+				messages = [
+					...messages,
+					{
+						id: `user:${clientEvent.id}`,
+						role: 'user',
+						text: messageText,
+						status: 'complete',
+						eventIds: [clientEvent.id],
+					},
+				];
+			}
+		}
+	}
+
 	if (event.type === 'text_delta') {
 		const delta = 'text' in event && typeof event.text === 'string' ? event.text : '';
 		text += delta;
@@ -354,6 +380,7 @@ class AgentController implements FlueAgentController {
 	#activeOperation: MutableOperation | null = null;
 	#activeAdmissionAbortController: AbortController | null = null;
 	#currentStream: { cancel(reason?: unknown): void } | null = null;
+	#ignoredSubmissionIds = new Set<string>();
 	#connectionGeneration = 0;
 	#disposed = false;
 
@@ -391,11 +418,14 @@ class AgentController implements FlueAgentController {
 	}
 
 	connect(offset?: string): void {
-		void this.#connect(offset ?? this.#initialConnectionOffset(), undefined);
+		void this.#connect(offset ?? this.#initialConnectionOffset(), this.#activeOperation ?? undefined);
 	}
 
 	reconnect(offset?: string): void {
-		void this.#connect(offset ?? this.#snapshot.checkpoint?.offset ?? this.#initialConnectionOffset(), undefined);
+		void this.#connect(
+			offset ?? this.#snapshot.checkpoint?.offset ?? this.#initialConnectionOffset(),
+			this.#activeOperation ?? undefined,
+		);
 	}
 
 	send(message: string, options: FlueAgentSendOptions = {}): FlueAgentOperation {
@@ -420,6 +450,7 @@ class AgentController implements FlueAgentController {
 		this.#activeAdmissionAbortController?.abort(new DOMException('Stopped', 'AbortError'));
 		this.#activeAdmissionAbortController = null;
 		const reason = new DOMException('Stopped', 'AbortError');
+		if (this.#activeOperation?.submissionId) this.#ignoredSubmissionIds.add(this.#activeOperation.submissionId);
 		this.#activeOperation?.reject(reason);
 		this.#activeOperation = null;
 		this.#rejectQueued(reason);
@@ -557,14 +588,15 @@ class AgentController implements FlueAgentController {
 	}
 
 	#dispatchBatch(batch: FlueEventBatch<AttachedAgentEvent>, operation: MutableOperation | undefined): void {
-		const batchId = `batch:${++nextBatchId}`;
+		const batchId = batchClientId(batch);
 		const receivedAt = Date.now();
 		let sawIdle = false;
 		let snapshot = this.#snapshot;
 
 		for (const [indexInBatch, event] of batch.events.entries()) {
+			if (event.submissionId && this.#ignoredSubmissionIds.has(event.submissionId)) continue;
 			const clientEvent: FlueClientEvent<AttachedAgentEvent> = {
-				id: `event:${++nextClientEventId}`,
+				id: eventClientId(batch, indexInBatch),
 				event,
 				batchId,
 				indexInBatch,
@@ -593,8 +625,8 @@ class AgentController implements FlueAgentController {
 			this.#activeOperation = null;
 			this.#advanceQueue();
 		}
-		this.#persistCheckpoint(checkpoint);
 		this.#persistSnapshot(this.#snapshot);
+		this.#persistCheckpoint(checkpoint);
 		this.#notify();
 	}
 
@@ -696,6 +728,7 @@ function mergeControllerOptions(
 		origin: agentOptions.origin ?? appOptions.origin,
 		token: agentOptions.token ?? appOptions.token,
 		headers: agentOptions.headers ?? appOptions.headers,
+		fetch: agentOptions.fetch ?? appOptions.fetch,
 		storage: agentOptions.storage ?? appOptions.storage ?? 'session',
 		storageNamespace: agentOptions.storageNamespace ?? appOptions.storageNamespace ?? namespace,
 	};
@@ -727,7 +760,7 @@ function sameControllerConfig(first: ControllerConfig, second: ControllerConfig)
 		first.baseUrl === second.baseUrl &&
 		first.origin === second.origin &&
 		first.token === second.token &&
-		first.headers === second.headers &&
+		equivalentHeaders(first.headers, second.headers) &&
 		first.fetch === second.fetch &&
 		first.replay === second.replay &&
 		first.storage === second.storage &&
@@ -739,6 +772,16 @@ function sameControllerConfig(first: ControllerConfig, second: ControllerConfig)
 		first.onEvent === second.onEvent &&
 		first.reduceEvent === second.reduceEvent
 	);
+}
+
+function equivalentHeaders(first: RequestHeaders | undefined, second: RequestHeaders | undefined): boolean {
+	if (first === second) return true;
+	if (!first || !second) return false;
+	if (typeof first === 'function' || typeof second === 'function') return false;
+	const firstEntries = Object.entries(first);
+	const secondEntries = Object.entries(second);
+	if (firstEntries.length !== secondEntries.length) return false;
+	return firstEntries.every(([key, value]) => second[key] === value);
 }
 
 function createSdkFromControllerOptions(options: FlueAgentControllerOptions): FlueClient {
@@ -784,6 +827,31 @@ function storageKeys(options: FlueAgentControllerOptions, id: string): { id: str
 		checkpoint: `${baseKey}:${id}:checkpoint`,
 		snapshot: `${baseKey}:${id}:snapshot`,
 	};
+}
+
+function isAgentMessage(value: unknown, role: FlueUiMessage['role']): value is { role: string; content?: unknown } {
+	return Boolean(value && typeof value === 'object' && (value as { role?: unknown }).role === role);
+}
+
+function agentMessageText(message: { content?: unknown }): string {
+	const content = message.content;
+	if (typeof content === 'string') return content;
+	if (!Array.isArray(content)) return '';
+	return content
+		.map((part) => {
+			if (!part || typeof part !== 'object') return '';
+			const text = (part as { text?: unknown }).text;
+			return typeof text === 'string' ? text : '';
+		})
+		.join('');
+}
+
+function batchClientId(batch: FlueEventBatch<AttachedAgentEvent>): string {
+	return `batch:${batch.nextOffset}`;
+}
+
+function eventClientId(batch: FlueEventBatch<AttachedAgentEvent>, indexInBatch: number): string {
+	return `event:${batch.nextOffset}:${indexInBatch}`;
 }
 
 function createOperation(message: string): MutableOperation {

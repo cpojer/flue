@@ -48,6 +48,20 @@ describe('createFlueAppClient()', () => {
 		app.releaseAgent(second);
 	});
 
+	it('shares controllers for equivalent inline header options', () => {
+		const app = createFlueAppClient({
+			client: createFakeSdk(),
+			storage: false,
+		});
+
+		const first = app.agent({ agent: 'support', id: 'user-1', headers: { authorization: 'Bearer test' } });
+		const second = app.agent({ agent: 'support', id: 'user-1', headers: { authorization: 'Bearer test' } });
+
+		expect(first).toBe(second);
+		app.releaseAgent(first);
+		app.releaseAgent(second);
+	});
+
 	it('queues sends and resolves operation resources from matching submission ids', async () => {
 		const batches = new Map<string, Array<FlueEventBatch<AttachedAgentEvent>>>();
 		const sdk = createFakeSdk({
@@ -167,6 +181,41 @@ describe('createFlueAppClient()', () => {
 		expect(requests[0]?.headers.get('x-controller')).toBe('yes');
 	});
 
+	it('builds SDK clients from app-level fetch options', async () => {
+		const originalFetch = globalThis.fetch;
+		const requests: Request[] = [];
+		globalThis.fetch = async () => {
+			throw new Error('Expected controller to use the app-level fetch option.');
+		};
+		try {
+			const app = createFlueAppClient({
+				baseUrl: 'https://provider.test/api',
+				storage: false,
+				fetch: async (input, init) => {
+					const request = new Request(input, init);
+					requests.push(request);
+					if (request.method === 'POST') {
+						return Response.json({
+							submissionId: 'sub-1',
+							streamUrl: 'https://provider.test/api/agents/support/inst-1',
+							offset: '-1',
+						}, { status: 202 });
+					}
+					return dsJsonResponse([{ type: 'idle', instanceId: 'inst-1', submissionId: 'sub-1' }], {
+						nextOffset: 'offset:done',
+						closed: true,
+					});
+				},
+			});
+			const agent = app.agent({ agent: 'support', id: 'inst-1' });
+
+			await expect(agent.send('hello').idle).resolves.toMatchObject({ status: 'idle' });
+			expect(requests).toHaveLength(2);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
 	it('preserves queued send options when the queued operation starts', async () => {
 		const sentMessages: string[] = [];
 		const sdk = createFakeSdk({
@@ -253,6 +302,178 @@ describe('createFlueAppClient()', () => {
 		});
 	});
 
+	it('does not replay stopped submission output after reconnect', async () => {
+		let streamCount = 0;
+		const sdk = createFakeSdk({
+			send: async () => ({
+				submissionId: 'sub:stopped',
+				streamUrl: 'https://flue.test/agents/support/inst-1',
+				offset: '-1',
+			}),
+			stream: () => {
+				streamCount++;
+				if (streamCount === 1) return createNeverSettlingStream();
+				return createFakeStream([
+					{
+						events: [
+							{ type: 'text_delta', text: 'late output', instanceId: 'inst-1', submissionId: 'sub:stopped' },
+							{ type: 'idle', instanceId: 'inst-1', submissionId: 'sub:stopped' },
+						],
+						nextOffset: 'offset:late',
+					},
+				]);
+			},
+		});
+		const app = createFlueAppClient({ client: sdk, storage: false });
+		const agent = app.agent({ agent: 'support', id: 'inst-1' });
+
+		const operation = agent.send('hello');
+		await operation.accepted;
+		agent.stop();
+		agent.reconnect('-1');
+		await flushAsyncWork();
+
+		expect(agent.getSnapshot().messages.map((message) => message.text)).toEqual(['hello']);
+	});
+
+	it('keeps active operation resources attached across reconnects', async () => {
+		let streamCount = 0;
+		const sdk = createFakeSdk({
+			send: async () => ({
+				submissionId: 'sub:reconnect',
+				streamUrl: 'https://flue.test/agents/support/inst-1',
+				offset: '-1',
+			}),
+			stream: () => {
+				streamCount++;
+				if (streamCount === 1) return createNeverSettlingStream();
+				return createFakeStream([
+					{
+						events: [
+							{ type: 'text_delta', text: 'after reconnect', instanceId: 'inst-1', submissionId: 'sub:reconnect' },
+							{ type: 'idle', instanceId: 'inst-1', submissionId: 'sub:reconnect' },
+						],
+						nextOffset: 'offset:reconnected',
+					},
+				]);
+			},
+		});
+		const app = createFlueAppClient({ client: sdk, storage: false });
+		const agent = app.agent({ agent: 'support', id: 'inst-1' });
+
+		const operation = agent.send('hello');
+		await operation.accepted;
+		agent.reconnect('-1');
+
+		await expect(withTimeout(operation.idle, 'operation idle after reconnect')).resolves.toMatchObject({
+			status: 'idle',
+			text: 'after reconnect',
+		});
+	});
+
+	it('reconstructs user messages from durable stream replay', async () => {
+		const sdk = createFakeSdk({
+			stream: () =>
+				createFakeStream([
+					{
+						events: [
+							{
+								type: 'message_end',
+								instanceId: 'inst-1',
+								submissionId: 'sub:replay',
+								message: {
+									role: 'user',
+									content: [{ type: 'text', text: 'hello from history' }],
+									timestamp: 0,
+								},
+							} as AttachedAgentEvent,
+							{ type: 'text_delta', text: 'assistant reply', instanceId: 'inst-1', submissionId: 'sub:replay' },
+							{ type: 'idle', instanceId: 'inst-1', submissionId: 'sub:replay' },
+						],
+						nextOffset: 'offset:replayed',
+					},
+				]),
+		});
+		const app = createFlueAppClient({ client: sdk, storage: false });
+		const agent = app.agent({ agent: 'support', id: 'inst-1' });
+
+		agent.connect('-1');
+		await flushAsyncWork();
+
+		expect(agent.getSnapshot().messages.map((message) => [message.role, message.text])).toEqual([
+			['user', 'hello from history'],
+			['assistant', 'assistant reply'],
+		]);
+	});
+
+	it('does not persist a checkpoint without the matching reduced snapshot', async () => {
+		const items = new Map<string, string>();
+		const storage = {
+			getItem: (key: string) => items.get(key) ?? null,
+			setItem(key: string, value: string) {
+				items.set(key, value);
+				if (key.endsWith(':snapshot')) throw new Error('Snapshot write failed.');
+			},
+			removeItem(key: string) {
+				items.delete(key);
+			},
+		};
+		const sdk = createFakeSdk({
+			send: async () => ({ submissionId: 'sub-1', streamUrl: 'https://flue.test/agents/support/inst-1', offset: '-1' }),
+			stream: () =>
+				createFakeStream([
+					{
+						events: [
+							{ type: 'text_delta', text: 'hello', instanceId: 'inst-1', submissionId: 'sub-1' },
+							{ type: 'idle', instanceId: 'inst-1', submissionId: 'sub-1' },
+						],
+						nextOffset: 'offset:batch-1',
+					},
+				]),
+		});
+		const app = createFlueAppClient({ client: sdk, storage, storageNamespace: 'test' });
+		const agent = app.agent({ agent: 'support', id: 'inst-1', replay: 'offset' });
+
+		await expect(agent.send('hello').idle).resolves.toMatchObject({ status: 'idle' });
+
+		expect(storage.getItem('flue:test:agent:support:inst-1:checkpoint')).toBeNull();
+	});
+
+	it('derives stable event ids from durable stream batches when replayed', async () => {
+		const sdk = createFakeSdk({
+			stream: () =>
+				createFakeStream([
+					{
+						events: [
+							{ type: 'text_delta', text: 'hello', instanceId: 'inst-1', submissionId: 'sub-1' },
+							{ type: 'idle', instanceId: 'inst-1', submissionId: 'sub-1' },
+						],
+						nextOffset: 'offset:stable-batch',
+					},
+				]),
+		});
+		const firstApp = createFlueAppClient({ client: sdk, storage: false });
+		const firstAgent = firstApp.agent({ agent: 'support', id: 'inst-1', replay: 'all' });
+
+		firstAgent.connect();
+		await flushAsyncWork();
+		const firstEventIds = firstAgent.getSnapshot().events.map((event) => event.id);
+		const firstMessageIds = firstAgent.getSnapshot().messages.map((message) => message.id);
+
+		const secondApp = createFlueAppClient({ client: sdk, storage: false });
+		const secondAgent = secondApp.agent({ agent: 'support', id: 'inst-1', replay: 'all' });
+
+		secondAgent.connect();
+		await flushAsyncWork();
+
+		expect(secondAgent.getSnapshot().events.map((event) => event.id)).toEqual(firstEventIds);
+		expect(secondAgent.getSnapshot().messages.map((message) => message.id)).toEqual(firstMessageIds);
+		expect(secondAgent.getSnapshot().events.map((event) => event.batchId)).toEqual([
+			'batch:offset:stable-batch',
+			'batch:offset:stable-batch',
+		]);
+	});
+
 	it('rejects an operation when the stream ends before idle', async () => {
 		const sdk = createFakeSdk({
 			send: async () => ({
@@ -281,6 +502,19 @@ describe('createFlueAppClient()', () => {
 			});
 		});
 	});
+
+async function flushAsyncWork(): Promise<void> {
+	await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+async function withTimeout<T>(value: PromiseLike<T>, label: string): Promise<T> {
+	return await Promise.race([
+		Promise.resolve(value),
+		new Promise<T>((_, reject) => {
+			setTimeout(() => reject(new Error(`Timed out waiting for ${label}.`)), 25);
+		}),
+	]);
+}
 
 function createFakeSdk(overrides: Partial<FlueClient['agents']> = {}): FlueClient {
 	return {

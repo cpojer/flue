@@ -190,6 +190,12 @@ Each operation exposes:
 
 The default `sendPolicy` is `queue`, so a second send waits until the active operation reaches idle. Use `sendPolicy: 'reject'` when the UI should reject overlapping sends instead.
 
+### Stopping local work
+
+Call `stop()` to disconnect the current stream, abort an in-flight prompt admission request, reject active and queued operation resources, and stop applying output for submissions the controller already knows were stopped.
+
+`stop()` is client-side cancellation. If the runtime has already accepted a submission, the agent may continue running on the server and may still write to its durable history. Server-side submission cancellation requires runtime support and is not part of `useFlue` yet.
+
 ## Replay and snapshots
 
 The default replay mode is `new`, which starts future connections at the current stream position. Set `replay: 'offset'` to persist the latest checkpoint and reduced snapshot in browser storage:
