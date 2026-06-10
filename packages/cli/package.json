@@ -31,8 +31,7 @@
 		"build": "tsdown && mv dist/flue.mjs dist/flue.js",
 		"check:types": "tsc --noEmit",
 		"pretest": "pnpm run build",
-		"test": "node --test",
-		"prepublishOnly": "node scripts/prepare-publish.mjs"
+		"test": "node --test"
 	},
 	"dependencies": {
 		"@cloudflare/vite-plugin": "^1.39.2",
