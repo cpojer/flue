@@ -689,6 +689,76 @@ describe('createOpenTelemetryObserver', () => {
 		});
 	});
 
+	it('ends tracked descendant spans when an operation terminal event arrives outside a workflow run', () => {
+		const tracer = new RecordingTracer();
+		const observe = createOpenTelemetryObserver({ tracer: tracer as never });
+		observe(
+			{
+				type: 'operation_start',
+				instanceId: 'agent-1',
+				operationId: 'op-1',
+				operationKind: 'prompt',
+				timestamp: '2026-05-27T00:00:00.000Z',
+			},
+			{} as never,
+		);
+		observe(
+			{
+				type: 'turn_request',
+				instanceId: 'agent-1',
+				operationId: 'op-1',
+				turnId: 'turn-1',
+				purpose: 'agent',
+				model: 'sonnet',
+				provider: 'anthropic',
+				api: 'messages',
+				input: { messages: [] },
+				timestamp: '2026-05-27T00:00:00.010Z',
+			},
+			{} as never,
+		);
+		observe(
+			{
+				type: 'tool_start',
+				instanceId: 'agent-1',
+				operationId: 'op-1',
+				turnId: 'turn-1',
+				toolCallId: 'tool-1',
+				toolName: 'lookup',
+				args: {},
+				timestamp: '2026-05-27T00:00:00.020Z',
+			},
+			{} as never,
+		);
+		observe(
+			{
+				type: 'operation',
+				instanceId: 'agent-1',
+				operationId: 'op-1',
+				operationKind: 'prompt',
+				durationMs: 30,
+				isError: true,
+				error: { message: 'storage failed' },
+				timestamp: '2026-05-27T00:00:00.030Z',
+			},
+			{} as never,
+		);
+
+		expect(tracer.spans.map((span) => span.name)).toEqual([
+			'flue.operation prompt',
+			'gen_ai.generate',
+			'flue.tool lookup',
+		]);
+		expect(tracer.spans.every((span) => span.ended)).toBe(true);
+		expect(
+			tracer.spans.slice(1).every(
+				(span) =>
+					span.status?.code === SpanStatusCode.ERROR &&
+					span.status.message === 'Operation ended before this span received its terminal event.',
+			),
+		).toBe(true);
+	});
+
 	it('does not export failed task result content unless sanitization is enabled', () => {
 		const tracer = new RecordingTracer();
 		const observe = createOpenTelemetryObserver({ tracer: tracer as never });

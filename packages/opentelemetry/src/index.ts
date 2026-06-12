@@ -31,6 +31,7 @@ export function createOpenTelemetryObserver(
 	const tasks = new Map<string, Span>();
 	const compactions = new Map<string, Span>();
 	const spanRunIds = new WeakMap<Span, string>();
+	const spanOperationIds = new WeakMap<Span, string>();
 
 	return (event, ctx) => {
 		const time = timestamp(event);
@@ -107,7 +108,7 @@ export function createOpenTelemetryObserver(
 			const parent = event.taskId ? tasks.get(event.taskId) : workflowSpan(event, runs);
 			operations.set(
 				event.operationId,
-				trackRunSpan(
+				trackSpan(
 					startSpan(
 						tracer,
 						`flue.operation ${event.operationKind}`,
@@ -122,6 +123,7 @@ export function createOpenTelemetryObserver(
 					),
 					event,
 					spanRunIds,
+					spanOperationIds,
 				),
 			);
 			return;
@@ -131,7 +133,7 @@ export function createOpenTelemetryObserver(
 			const parent = operationSpan(event, operations) ?? workflowSpan(event, runs);
 			tasks.set(
 				event.taskId,
-				trackRunSpan(
+				trackSpan(
 					startSpan(
 						tracer,
 						event.agent ? `flue.task ${event.agent}` : 'flue.task',
@@ -151,6 +153,7 @@ export function createOpenTelemetryObserver(
 					),
 					event,
 					spanRunIds,
+					spanOperationIds,
 				),
 			);
 			return;
@@ -159,7 +162,7 @@ export function createOpenTelemetryObserver(
 			const parent = operationSpan(event, operations) ?? workflowSpan(event, runs);
 			compactions.set(
 				compactionKey(event),
-				trackRunSpan(
+				trackSpan(
 					startSpan(tracer, 'flue.compaction', parent, event, ctx, resolveRootContext, {
 						startTime: time,
 						attributes: {
@@ -170,6 +173,7 @@ export function createOpenTelemetryObserver(
 					}),
 					event,
 					spanRunIds,
+					spanOperationIds,
 				),
 			);
 			return;
@@ -184,7 +188,7 @@ export function createOpenTelemetryObserver(
 						workflowSpan(event, runs));
 			turns.set(
 				event.turnId,
-				trackRunSpan(
+				trackSpan(
 					startSpan(tracer, 'gen_ai.generate', parent, event, ctx, resolveRootContext, {
 						startTime: time,
 						attributes: {
@@ -200,6 +204,7 @@ export function createOpenTelemetryObserver(
 					}),
 					event,
 					spanRunIds,
+					spanOperationIds,
 				),
 			);
 			return;
@@ -212,7 +217,7 @@ export function createOpenTelemetryObserver(
 				workflowSpan(event, runs);
 			tools.set(
 				toolKey(event),
-				trackRunSpan(
+				trackSpan(
 					startSpan(tracer, `flue.tool ${event.toolName}`, parent, event, ctx, resolveRootContext, {
 						startTime: time,
 						attributes: {
@@ -224,6 +229,7 @@ export function createOpenTelemetryObserver(
 					}),
 					event,
 					spanRunIds,
+					spanOperationIds,
 				),
 			);
 			return;
@@ -307,6 +313,16 @@ export function createOpenTelemetryObserver(
 			return;
 		}
 		if (event.type === 'operation') {
+			endOperationDescendants(
+				event.operationId,
+				time,
+				'Operation ended before this span received its terminal event.',
+				spanOperationIds,
+				turns,
+				tools,
+				tasks,
+				compactions,
+			);
 			const span = operations.get(event.operationId);
 			if (!span) return;
 			const exportedEvent = sanitizeEvent(sanitize, event);
@@ -318,16 +334,6 @@ export function createOpenTelemetryObserver(
 			setContentAttribute(span, 'flue.operation.result', exportedEvent?.result);
 			complete(span, event.isError, exportedEvent?.error, 'Operation failed.', time);
 			operations.delete(event.operationId);
-			const key = compactionKey(event);
-			const compaction = compactions.get(key);
-			if (compaction) {
-				compaction.setStatus({
-					code: SpanStatusCode.ERROR,
-					message: 'Operation ended without a terminal compaction event.',
-				});
-				compaction.end(time);
-				compactions.delete(key);
-			}
 			return;
 		}
 		if (event.type === 'run_end') {
@@ -362,8 +368,14 @@ export function createOpenTelemetryObserver(
 	};
 }
 
-function trackRunSpan(span: Span, event: FlueEvent, spanRunIds: WeakMap<Span, string>): Span {
+function trackSpan(
+	span: Span,
+	event: FlueEvent,
+	spanRunIds: WeakMap<Span, string>,
+	spanOperationIds: WeakMap<Span, string>,
+): Span {
 	if (event.runId) spanRunIds.set(span, event.runId);
+	if (event.operationId) spanOperationIds.set(span, event.operationId);
 	return span;
 }
 
@@ -381,6 +393,29 @@ function endRunDescendants(
 	for (const spans of [tools, turns, compactions, tasks, operations]) {
 		for (const [key, span] of spans) {
 			if (spanRunIds.get(span) !== runId) continue;
+			span.setStatus({
+				code: SpanStatusCode.ERROR,
+				message,
+			});
+			span.end(time);
+			spans.delete(key);
+		}
+	}
+}
+
+function endOperationDescendants(
+	operationId: string,
+	time: Date,
+	message: string,
+	spanOperationIds: WeakMap<Span, string>,
+	turns: Map<string, Span>,
+	tools: Map<string, Span>,
+	tasks: Map<string, Span>,
+	compactions: Map<string, Span>,
+): void {
+	for (const spans of [tools, turns, compactions, tasks]) {
+		for (const [key, span] of spans) {
+			if (spanOperationIds.get(span) !== operationId) continue;
 			span.setStatus({
 				code: SpanStatusCode.ERROR,
 				message,
