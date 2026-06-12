@@ -42,16 +42,19 @@ import {
 	FLUE_SCHEMA_VERSION,
 	formatOffset,
 	parseOffset,
+	clampLimit,
 	createSessionStorageKey,
 	decodeRunCursor,
 	deduplicateSessionDeletion,
 	DEFAULT_LIST_LIMIT,
+	DEFAULT_READ_LIMIT,
 	DURABILITY_DEFAULT_MAX_ATTEMPTS,
 	DURABILITY_DEFAULT_TIMEOUT_MS,
 	encodeRunCursor,
 	isSubmissionPayload,
 	LEASE_DURATION_MS,
 	MAX_LIST_LIMIT,
+	MAX_READ_LIMIT,
 	parseAcceptedAt,
 	SUBMISSION_HARNESS_NAME,
 	SUBMISSION_SESSION_NAME,
@@ -1199,7 +1202,7 @@ class PgRunStore implements RunStore {
 	}
 
 	async listRuns(opts: ListRunsOpts = {}): Promise<ListRunsResponse> {
-		const limit = clampRunLimit(opts.limit);
+		const limit = clampLimit(opts.limit, DEFAULT_LIST_LIMIT, MAX_LIST_LIMIT);
 		const cursor = decodeRunCursor(opts.cursor);
 
 		const conditions: string[] = [];
@@ -1255,14 +1258,7 @@ function parseRunPointer(row: SqlRow): RunPointer {
 	};
 }
 
-function clampRunLimit(limit: number | undefined): number {
-	if (!limit || !Number.isFinite(limit) || limit <= 0) return DEFAULT_LIST_LIMIT;
-	return Math.min(limit, MAX_LIST_LIMIT);
-}
-
 // ─── Event stream store ─────────────────────────────────────────────────────
-
-const DEFAULT_READ_LIMIT = 100;
 
 class PgEventStreamStore implements EventStreamStore {
 	private listeners = new Map<string, Set<() => void>>();
@@ -1331,7 +1327,7 @@ class PgEventStreamStore implements EventStreamStore {
 		}
 
 		const rawOffset = opts?.offset ?? '-1';
-		const limit = Math.min(opts?.limit ?? DEFAULT_READ_LIMIT, 1000);
+		const limit = clampLimit(opts?.limit, DEFAULT_READ_LIMIT, MAX_READ_LIMIT);
 
 		let startAfter: number;
 		if (rawOffset === '-1') {
