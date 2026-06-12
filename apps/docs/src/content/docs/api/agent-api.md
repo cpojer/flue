@@ -218,7 +218,7 @@ The initializer runs whenever the runtime initializes a harness from the created
 | `compaction`    | `false \| CompactionConfig`              | Automatic conversation-compaction configuration. `false` disables threshold compaction; overflow recovery and explicit `session.compact()` calls still compact when needed. |
 | `durability`    | `DurabilityConfig`                       | Durability configuration for durable agent submissions. Controls recovery attempt limits and submission timeouts.                                                           |
 | `cwd`           | `string`                                 | Working directory inside the initialized sandbox.                                                                                                                           |
-| `sandbox`       | `false \| SandboxFactory \| BashFactory` | Sandbox factory used to construct the initialized environment. See [Sandboxes](/docs/guide/sandboxes/).                                                                     |
+| `sandbox`       | `SandboxFactory \| BashFactory`          | Sandbox factory used to construct the initialized environment. Omit for the default in-memory sandbox. See [Sandboxes](/docs/guide/sandboxes/).                             |
 
 #### `CreatedAgent`
 
