@@ -228,6 +228,8 @@ interface EventStreamStore {
 
 Offset format: offsets are strings in the Durable Streams format `<readSeq>_<seq>` — two 16-digit zero-padded integers separated by an underscore, with the first component always `0` (Flue uses integer sequences, not segmented files) — plus the sentinel `"-1"`. Offsets must increase monotonically per stream and remain comparable across reconnects. Use the `formatOffset()` and `parseOffset()` helpers from `@flue/runtime/adapter` to produce and consume them rather than hand-rolling the encoding.
 
+`nextOffset` on `EventStreamReadResult` and `EventStreamMeta` is a resume cursor: the offset of the last event delivered or appended (`"-1"` when there is none), to be passed back as `offset` on the next read — never the next sequence number to be assigned. The name follows the Durable Streams `Stream-Next-Offset` wire field, which under strictly-after reads is the last delivered offset.
+
 ## `SessionData`
 
 ```ts
