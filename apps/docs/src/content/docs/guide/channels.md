@@ -6,18 +6,18 @@ description: Receive verified provider events and connect them to Flue agents.
 A channel receives provider HTTP events, verifies and normalizes them, and lets
 your application decide what happens next. Flue provides ingress packages for:
 
-| Provider    | Package             | Discovered routes                                          |
-| ----------- | ------------------- | ---------------------------------------------------------- |
-| GitHub      | `@flue/github`      | `/channels/<file>/webhook`                                 |
-| Slack       | `@flue/slack`       | `/channels/<file>/events`, `/channels/<file>/interactions` |
-| Discord     | `@flue/discord`     | `/channels/<file>/interactions`                            |
-| Teams       | `@flue/teams`       | `/channels/<file>/activities`                              |
-| Google Chat | `@flue/google-chat` | `/channels/<file>/interactions`, `/channels/<file>/events` |
-| Linear      | `@flue/linear`      | `/channels/<file>/webhook`                                 |
-| Telegram    | `@flue/telegram`    | `/channels/<file>/webhook`                                 |
-| WhatsApp    | `@flue/whatsapp`    | `/channels/<file>/webhook`                                 |
-| Twilio      | `@flue/twilio`      | `/channels/<file>/webhook`, `/channels/<file>/status`      |
-| Messenger   | `@flue/messenger`   | `/channels/<file>/webhook`                                 |
+| Provider    | Package             | Discovered routes                                                                       |
+| ----------- | ------------------- | --------------------------------------------------------------------------------------- |
+| GitHub      | `@flue/github`      | `/channels/<file>/webhook`                                                              |
+| Slack       | `@flue/slack`       | `/channels/<file>/events`, `/channels/<file>/interactions`, `/channels/<file>/commands` |
+| Discord     | `@flue/discord`     | `/channels/<file>/interactions`                                                         |
+| Teams       | `@flue/teams`       | `/channels/<file>/activities`                                                           |
+| Google Chat | `@flue/google-chat` | `/channels/<file>/interactions`, `/channels/<file>/events`                              |
+| Linear      | `@flue/linear`      | `/channels/<file>/webhook`                                                              |
+| Telegram    | `@flue/telegram`    | `/channels/<file>/webhook`                                                              |
+| WhatsApp    | `@flue/whatsapp`    | `/channels/<file>/webhook`                                                              |
+| Twilio      | `@flue/twilio`      | `/channels/<file>/webhook`, `/channels/<file>/status`                                   |
+| Messenger   | `@flue/messenger`   | `/channels/<file>/webhook`                                                              |
 
 The packages own signature verification, body limits, provider handshakes,
 identity checks, typed event normalization, and acknowledgement behavior. They
@@ -74,6 +74,7 @@ Each immediate file beneath `channels/` exports one named `channel` binding:
 src/channels/github.ts  -> /channels/github/webhook
 src/channels/slack.ts   -> /channels/slack/events
                           /channels/slack/interactions
+                          /channels/slack/commands
 src/channels/teams.ts   -> /channels/teams/activities
 src/channels/google-chat.ts
                         -> /channels/google-chat/interactions
@@ -152,8 +153,9 @@ The callback receives the authentic Hono context as `c`. Return `c.json(...)`,
 JSON-compatible return value becomes a JSON response. When the provider allows
 an empty acknowledgement, returning nothing produces an empty `200`.
 
-Slack surfaces are optional: omitting `events` or `interactions` means that
-route is not published. Discord interactions require a provider response.
+Slack surfaces are optional: omitting `events`, `interactions`, or `commands`
+means that route is not published. Discord interactions require a provider
+response.
 
 ## Own the SDK and tools
 
