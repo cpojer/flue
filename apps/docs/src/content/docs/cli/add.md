@@ -71,4 +71,4 @@ flue add https://provider.example/webhooks --category channel --print | codex
 ```
 
 See [Sandboxes](/docs/guide/sandboxes/), [Channels](/docs/guide/channels/), and
-the [Ecosystem](/docs/ecosystem/overview/) for connector guidance.
+the [Ecosystem](/docs/ecosystem/) for connector guidance.

@@ -3,6 +3,7 @@ export type DocsNavItem =
 			title: string;
 			slug: string;
 			anchor?: string;
+			icon?: 'home';
 			items?: DocsNavItem[];
 	  }
 	| {
@@ -11,7 +12,7 @@ export type DocsNavItem =
 	  };
 
 export interface DocsNavGroup {
-	title: string;
+	title?: string;
 	items: DocsNavItem[];
 }
 
@@ -32,8 +33,9 @@ export const docsSections: DocsSection[] = [
 				title: 'Introduction',
 				items: [
 					{ title: 'Getting Started', slug: 'getting-started/quickstart' },
-					{ title: 'What is an agent?', slug: 'concepts/agents' },
 					{ title: 'Why Flue?', slug: 'introduction/why-flue' },
+					{ title: 'What is an agent?', slug: 'concepts/agents' },
+					{ title: 'Durable Agents', slug: 'concepts/durable-execution' },
 					{ title: 'Changelog', href: 'https://github.com/withastro/flue/blob/main/CHANGELOG.md' },
 				],
 			},
@@ -41,19 +43,16 @@ export const docsSections: DocsSection[] = [
 				title: 'Guides',
 				items: [
 					{ title: 'Project Layout', slug: 'guide/project-layout' },
-					{ title: 'Models & Providers', slug: 'guide/models' },
+					{ title: 'Routing', slug: 'guide/routing' },
+					{ title: 'Database', slug: 'guide/database' },
 					{ title: 'Agents', slug: 'guide/building-agents' },
 					{ title: 'Workflows', slug: 'guide/workflows' },
-					{ title: 'Durable Execution', slug: 'guide/durable-execution' },
-					{ title: 'Database', slug: 'guide/database' },
-					{ title: 'Skills', slug: 'guide/skills' },
+					{ title: 'LLM', slug: 'guide/models' },
 					{ title: 'Tools', slug: 'guide/tools' },
+					{ title: 'Skills', slug: 'guide/skills' },
 					{ title: 'Subagents', slug: 'guide/subagents' },
 					{ title: 'Sandboxes', slug: 'guide/sandboxes' },
-					{ title: 'Routing', slug: 'guide/routing' },
 					{ title: 'Channels', slug: 'guide/channels' },
-					{ title: 'Build a Custom Channel', slug: 'guide/build-your-own-channel' },
-					{ title: 'Develop & Build', slug: 'guide/develop-and-build' },
 					{ title: 'Observability', slug: 'guide/observability' },
 				],
 			},
@@ -195,14 +194,16 @@ export const docsSections: DocsSection[] = [
 	{
 		key: 'ecosystem',
 		title: 'Ecosystem',
-		landingSlug: 'ecosystem/channels',
+		landingSlug: 'ecosystem',
 		groups: [
+			{
+				items: [{ title: 'Overview', slug: 'ecosystem', icon: 'home' }],
+			},
 			{
 				title: 'Channels',
 				items: [
-					{ title: 'Overview', slug: 'ecosystem/channels' },
 					{ title: 'Discord', slug: 'ecosystem/channels/discord' },
-					{ title: 'Facebook Messenger', slug: 'ecosystem/channels/messenger' },
+					{ title: 'Facebook', slug: 'ecosystem/channels/messenger' },
 					{ title: 'GitHub', slug: 'ecosystem/channels/github' },
 					{ title: 'Google Chat', slug: 'ecosystem/channels/google-chat' },
 					{ title: 'Intercom', slug: 'ecosystem/channels/intercom' },
@@ -210,10 +211,7 @@ export const docsSections: DocsSection[] = [
 					{ title: 'Microsoft Teams', slug: 'ecosystem/channels/teams' },
 					{ title: 'Notion', slug: 'ecosystem/channels/notion' },
 					{ title: 'Resend', slug: 'ecosystem/channels/resend' },
-					{
-						title: 'Salesforce Marketing Cloud',
-						slug: 'ecosystem/channels/salesforce-marketing-cloud',
-					},
+					{ title: 'Salesforce', slug: 'ecosystem/channels/salesforce-marketing-cloud' },
 					{ title: 'Shopify', slug: 'ecosystem/channels/shopify' },
 					{ title: 'Slack', slug: 'ecosystem/channels/slack' },
 					{ title: 'Stripe', slug: 'ecosystem/channels/stripe' },

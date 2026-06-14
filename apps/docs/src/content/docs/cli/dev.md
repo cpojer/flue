@@ -44,4 +44,4 @@ flue dev --target cloudflare --port 8787
 flue dev --env .env.staging
 ```
 
-See [Develop & Build](/docs/guide/develop-and-build/) for the local development workflow.
+See the [CLI overview](/docs/cli/overview/) for the complete development workflow.

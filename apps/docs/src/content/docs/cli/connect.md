@@ -48,4 +48,4 @@ flue connect assistant customer-123 --target node
 flue connect assistant customer-123 --env .env.staging
 ```
 
-See [Develop & Build](/docs/guide/develop-and-build/) for the local development workflow.
+See the [CLI overview](/docs/cli/overview/) for the complete development workflow.

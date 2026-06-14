@@ -1,5 +1,5 @@
 ---
-title: Models & Providers
+title: LLM (Models & Providers)
 description: Select models, configure providers, and tune reasoning behavior in Flue agents.
 lastReviewedAt: 2026-05-29
 ---

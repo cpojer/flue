@@ -153,4 +153,4 @@ Telemetry can include sensitive application and model data, including workflow p
 - [Workflows](/docs/guide/workflows/) — create finite operations whose run history can be inspected.
 - [Agents](/docs/guide/building-agents/) — create continuing agent instances and deliver direct or dispatched input.
 - [Routing](/docs/guide/routing/) — add the application entrypoint where telemetry observers are registered.
-- [Develop & Build](/docs/guide/develop-and-build/) — build the application environment that emits your production telemetry.
+- [CLI](/docs/cli/overview/) — build the application environment that emits your production telemetry.

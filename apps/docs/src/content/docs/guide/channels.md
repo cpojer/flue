@@ -46,8 +46,26 @@ The named `channel` export is the Flue integration. The named `client` export is
 ordinary application code initialized with the provider SDK. A channel module
 may also export application-owned tools or helper functions.
 
-See the [channel catalog](/docs/ecosystem/channels/) for first-party packages
+See the [Ecosystem](/docs/ecosystem/#channels) for first-party packages
 and provider-specific setup.
+
+## Custom Channel
+
+When Flue does not provide a first-party channel, give `flue add` the provider's
+webhook documentation and select the generic channel recipe:
+
+```sh
+flue add https://provider.example/webhooks --category channel --print | codex
+```
+
+The recipe guides your coding agent through creating a discovered
+`channels/<provider>.ts` module, verifying requests against the unconsumed body,
+preserving provider-native events, and adding the provider's established SDK for
+outbound calls. Review the generated code and test valid and invalid signatures,
+protocol handshakes, responses, and the configured Node or Cloudflare target.
+
+See the [generic channel recipe](https://github.com/withastro/flue/blob/main/connectors/channel.md)
+for the full implementation and verification checklist.
 
 ## Understand ownership
 
@@ -297,9 +315,6 @@ required transport.
 
 ## Other integration paths
 
-Use a [custom channel](/docs/guide/build-your-own-channel/) when Flue does not
-provide the provider package but the service has verifiable HTTP ingress.
-
 [Chat SDK](https://chat-sdk.dev/docs) is a separate option when its
 cross-provider conversation model, adapters, and chat-side state are a better
 fit than provider-native first-party channels. In that design, Chat SDK owns
@@ -308,9 +323,7 @@ its adapter and state boundary, while application handlers call
 
 ## Next steps
 
-- [Channel catalog](/docs/ecosystem/channels/) — choose a first-party provider.
-- [Build a custom channel](/docs/guide/build-your-own-channel/) — implement
-  another verified HTTP provider.
+- [Ecosystem](/docs/ecosystem/#channels) — choose a first-party provider.
 - [Agents](/docs/guide/building-agents/) — deliver events into continuing agent
   sessions.
 - [Routing](/docs/guide/routing/) — compose channels with application routes,

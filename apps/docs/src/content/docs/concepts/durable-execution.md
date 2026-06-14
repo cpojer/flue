@@ -1,5 +1,5 @@
 ---
-title: Durable Execution
+title: Durable Agents
 description: Understand how Flue agents and workflows handle server restarts, interrupted connections, and other disruptions.
 ---
 

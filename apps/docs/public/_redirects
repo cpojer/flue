@@ -4,3 +4,11 @@
 /docs/guide/chat/ /docs/guide/channels/ 301
 /docs/guide/channels/:provider /docs/ecosystem/channels/:provider/ 301
 /docs/guide/channels/:provider/ /docs/ecosystem/channels/:provider/ 301
+/docs/guide/develop-and-build /docs/cli/overview/ 301
+/docs/guide/develop-and-build/ /docs/cli/overview/ 301
+/docs/guide/durable-execution /docs/concepts/durable-execution/ 301
+/docs/guide/durable-execution/ /docs/concepts/durable-execution/ 301
+/docs/ecosystem/channels /docs/ecosystem/ 301
+/docs/ecosystem/channels/ /docs/ecosystem/ 301
+/docs/ecosystem/overview /docs/ecosystem/ 301
+/docs/ecosystem/overview/ /docs/ecosystem/ 301

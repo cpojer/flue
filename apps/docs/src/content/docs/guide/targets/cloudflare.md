@@ -104,7 +104,7 @@ The submitting connection observes the work but does not own it. If a client dis
 
 When a Durable Object resumes after interruption, Flue checks stored input and session history before deciding what to do next. It requeues only when it can prove the input was not applied, recognizes already-completed output, and records an interruption instead of blindly repeating uncertain model or tool work.
 
-For the full recovery model, see [Durable Execution](/docs/guide/durable-execution/).
+For the full recovery model, see [Durable Agents](/docs/concepts/durable-execution/).
 
 ## Workers AI and AI Gateway
 

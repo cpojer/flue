@@ -32,7 +32,7 @@ Node does not get Cloudflare's automatic Durable Object wake or Fiber recovery. 
 
 That reconciliation covers agent submissions only. Node currently has no recovery path that terminalizes a workflow run interrupted by a crash or closes its event stream. With a durable adapter the run record and its events survive the restart, but the interrupted run remains listed as `active` and the orphaned `runs/<id>` stream persists in an open state, so live Durable Streams readers — long-poll, SSE, or `flue logs -f` — wait indefinitely for events that will never arrive. Use a catch-up read such as `flue logs --no-follow` to inspect events persisted before the crash. On Cloudflare, Fiber recovery terminalizes interrupted runs and closes their streams.
 
-See [Database](/docs/guide/database/) for `db.ts`, SQLite, Postgres, and custom adapters. See [Durable Execution](/docs/guide/durable-execution/) for recovery behavior.
+See [Database](/docs/guide/database/) for `db.ts`, SQLite, Postgres, and custom adapters. See [Durable Agents](/docs/concepts/durable-execution/) for recovery behavior.
 
 ## `local()` sandbox
 
@@ -67,7 +67,7 @@ Passing `env: { ...process.env }` exposes the full host environment to the model
 
 When agent work needs per-session isolation, a Linux toolchain, or a provider-managed environment, use a remote sandbox connector instead of `local()`. Remote sandboxes run on external infrastructure and connect through the [Sandbox Connector API](/docs/api/sandbox-api/).
 
-See the Ecosystem [Sandboxes](/docs/ecosystem/overview/) catalog for available integrations, including [Daytona](/docs/ecosystem/sandboxes/daytona/), [E2B](/docs/ecosystem/sandboxes/e2b/), and [Modal](/docs/ecosystem/sandboxes/modal/).
+See the Ecosystem [Sandboxes](/docs/ecosystem/#sandboxes) catalog for available integrations, including [Daytona](/docs/ecosystem/sandboxes/daytona/), [E2B](/docs/ecosystem/sandboxes/e2b/), and [Modal](/docs/ecosystem/sandboxes/modal/).
 
 ## Environment and secrets
 

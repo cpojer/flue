@@ -5,7 +5,7 @@ description: Configure database-backed state for Flue agents and workflow runs.
 
 Flue uses a database for agent session history, accepted agent submissions, and workflow-run records. On Node.js, database setup is explicit through `db.ts`. On Cloudflare, generated Durable Objects use SQLite automatically.
 
-This guide covers how `db.ts` works, which built-in adapters are available, and what database-backed state does and does not cover. For interruption recovery and restart behavior, see [Durable Execution](/docs/guide/durable-execution/). For the exact adapter contract, see [Data Persistence API](/docs/api/data-persistence-api/).
+This guide covers how `db.ts` works, which built-in adapters are available, and what database-backed state does and does not cover. For interruption recovery and restart behavior, see [Durable Agents](/docs/concepts/durable-execution/). For the exact adapter contract, see [Data Persistence API](/docs/api/data-persistence-api/).
 
 ## `db.ts`
 
