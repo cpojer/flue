@@ -1,4 +1,4 @@
-import type { EventPayloadMap, WebhookEvent, WebhookEventName } from '@octokit/webhooks-types';
+import type { EventPayloadMap, WebhookEventName } from '@octokit/webhooks-types';
 import type { Context, Env, Handler } from 'hono';
 import { InvalidGitHubConversationKeyError, InvalidGitHubInputError } from './errors.ts';
 import { createGitHubWebhookHandler } from './webhook.ts';

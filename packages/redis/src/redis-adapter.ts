@@ -96,6 +96,11 @@ function strings(value: unknown): string[] {
 	return value.map(String);
 }
 
+function required(value: string | undefined, message: string): string {
+	if (value === undefined) throw new TypeError(message);
+	return value;
+}
+
 function hash(value: unknown): Hash {
 	if (value == null) return {};
 	if (!Array.isArray(value) && typeof value === 'object') {
@@ -103,7 +108,12 @@ function hash(value: unknown): Hash {
 	}
 	const entries = strings(value);
 	const result: Hash = {};
-	for (let index = 0; index < entries.length; index += 2) result[entries[index]!] = entries[index + 1]!;
+	for (let index = 0; index < entries.length; index += 2) {
+		const key = entries[index];
+		const entry = entries[index + 1];
+		if (key === undefined || entry === undefined) throw new TypeError('Redis hash response is malformed.');
+		result[key] = entry;
+	}
 	return result;
 }
 
@@ -270,8 +280,7 @@ class RedisSessionStore implements SessionStore {
 		await this.backend.command('ZADD', [this.backend.keys.sessionGenerations(id), Date.now(), generation]);
 		const { entries, ...session } = data;
 		const fields: Array<[string, string]> = [['session', json(session)], ['entryCount', String(entries.length)]];
-		for (let index = 0; index < entries.length; index++) {
-			const entry = entries[index]!;
+		for (const [index, entry] of entries.entries()) {
 			const prepared = prepareSessionEntry(entry);
 			fields.push([`entry:${index}`, json({ id: entry.id, value: prepared.value, chunks: prepared.chunks })]);
 		}
@@ -364,11 +373,16 @@ async function deleteChunkPointer(backend: Backend, pointer: string, owner?: Per
 	const generations = `${pointer}:generations`;
 	const values = strings(await backend.command('ZRANGE', [generations, 0, -1]));
 	if (values.length > 0) {
-		if (!owner) {
+		let resolvedOwner = owner;
+		if (!resolvedOwner) {
 			const parts = pointer.split(':').slice(-3).map(part => Buffer.from(part, 'base64url').toString());
-			owner = { kind: parts[0] as PersistedChunkOwner['kind'], id: parts[1]!, part: parts[2]! };
+			const kind = parts[0];
+			const id = parts[1];
+			const part = parts[2];
+			if (!kind || !id || !part) throw new TypeError('Persisted Redis chunk owner is malformed.');
+			resolvedOwner = { kind: kind as PersistedChunkOwner['kind'], id, part };
 		}
-		await backend.command('DEL', values.map(value => backend.keys.chunkGeneration(owner!, value)));
+		await backend.command('DEL', values.map(value => backend.keys.chunkGeneration(resolvedOwner, value)));
 	}
 	await backend.command('DEL', [pointer, generations]);
 	await backend.command('SREM', [backend.keys.chunkOwners(), pointer]);
@@ -614,7 +628,8 @@ class RedisSubmissionStore implements AgentSubmissionStore {
 		if (!existing || existing.kind !== input.kind) return { kind: 'conflict' };
 		if (input.kind === 'direct') {
 			const row = await this.backend.hgetall(this.backend.keys.submission(input.submissionId));
-			const persisted = await this.readSubmissionGeneration(input.submissionId, row.generation!);
+			const generation = required(row.generation, 'Persisted Redis submission generation is missing.');
+			const persisted = await this.readSubmissionGeneration(input.submissionId, generation);
 			if (!matchesPersistedDirectSubmission(input, JSON.parse(persisted.payload) as DirectAgentSubmissionInput, persisted.chunks)) return { kind: 'conflict' };
 		} else if (json(existing.input) !== json(input)) return { kind: 'conflict' };
 		return { kind: 'submission', submission: existing };
@@ -726,7 +741,11 @@ class RedisSubmissionStore implements AgentSubmissionStore {
 		const parse = (record: Hash) => {
 			if (!record.payload) throw new TypeError('Persisted Redis submission generation is malformed.');
 			const chunks: PersistedChunkRow[] = [];
-			for (let index = 0; index < integer(record.chunkCount ?? 0); index++) chunks.push(JSON.parse(record[`chunk:${index}`]!));
+			for (let index = 0; index < integer(record.chunkCount ?? 0); index++) {
+				const chunk = record[`chunk:${index}`];
+				if (!chunk) throw new TypeError('Persisted Redis submission generation is malformed.');
+				chunks.push(JSON.parse(chunk));
+			}
 			return { payload: record.payload, chunks };
 		};
 		if (generation) return parse(await this.backend.hgetall(this.backend.keys.submissionGeneration(submissionId, generation)));
@@ -736,14 +755,18 @@ class RedisSubmissionStore implements AgentSubmissionStore {
 	}
 
 	private async parseSubmission(row: Hash): Promise<AgentSubmission> {
-		const persisted = await this.readSubmissionGeneration(row.submissionId!);
+		const malformed = 'Persisted Redis submission payload is malformed.';
+		const submissionId = required(row.submissionId, malformed);
+		const sessionKey = required(row.sessionKey, malformed);
+		const kind = required(row.kind, malformed) as 'dispatch' | 'direct';
+		const persisted = await this.readSubmissionGeneration(submissionId);
 		const acceptedAt = integer(row.acceptedAt);
 		const parsed = JSON.parse(persisted.payload);
-		const input = row.kind === 'direct' ? hydratePersistedDirectSubmission(parsed, persisted.chunks) : parsed;
-		if (!isSubmissionPayload(input, { kind: row.kind!, submissionId: row.submissionId!, sessionKey: row.sessionKey!, acceptedAt })) throw new TypeError('Persisted Redis submission payload is malformed.');
+		const input = kind === 'direct' ? hydratePersistedDirectSubmission(parsed, persisted.chunks) : parsed;
+		if (!isSubmissionPayload(input, { kind, submissionId, sessionKey, acceptedAt })) throw new TypeError(malformed);
 		return {
-			sequence: integer(row.sequence), submissionId: row.submissionId!, sessionKey: row.sessionKey!,
-			kind: row.kind as 'dispatch' | 'direct', input, status: row.status as AgentSubmission['status'], acceptedAt,
+			sequence: integer(row.sequence), submissionId, sessionKey,
+			kind, input, status: row.status as AgentSubmission['status'], acceptedAt,
 			...(row.attemptId ? { attemptId: row.attemptId } : {}),
 			...(row.inputAppliedAt ? { inputAppliedAt: integer(row.inputAppliedAt) } : {}),
 			...(row.recoveryRequestedAt ? { recoveryRequestedAt: integer(row.recoveryRequestedAt) } : {}),
@@ -756,9 +779,10 @@ class RedisSubmissionStore implements AgentSubmissionStore {
 }
 
 function parseJournal(row: Hash): AgentTurnJournal {
+	const malformed = 'Persisted Redis turn journal is malformed.';
 	return {
-		submissionId: row.submissionId!, sessionKey: row.sessionKey!, kind: row.kind as 'dispatch' | 'direct',
-		attemptId: row.attemptId!, operationId: row.operationId!, turnId: row.turnId!, phase: row.phase as AgentTurnJournalPhase,
+		submissionId: required(row.submissionId, malformed), sessionKey: required(row.sessionKey, malformed), kind: row.kind as 'dispatch' | 'direct',
+		attemptId: required(row.attemptId, malformed), operationId: required(row.operationId, malformed), turnId: required(row.turnId, malformed), phase: row.phase as AgentTurnJournalPhase,
 		revision: integer(row.revision), createdAt: integer(row.createdAt), updatedAt: integer(row.updatedAt),
 		...(row.checkpointLeafId ? { checkpointLeafId: row.checkpointLeafId } : {}),
 		...(row.toolRequest ? { toolRequest: JSON.parse(row.toolRequest) } : {}),
@@ -813,13 +837,15 @@ class RedisRunStore {
 		}
 		const hasNext = records.length > limit;
 		const runs = records.slice(0, limit);
-		return { runs, ...(hasNext ? { nextCursor: encodeRunCursor(runs.at(-1)!) } : {}) };
+		const lastRun = runs.at(-1);
+		return { runs, ...(hasNext && lastRun ? { nextCursor: encodeRunCursor(lastRun) } : {}) };
 	}
 }
 
 function parseRun(row: Hash): RunRecord {
+	const malformed = 'Persisted Redis run is malformed.';
 	return {
-		runId: row.runId!, workflowName: row.workflowName!, status: row.status as RunStatus, startedAt: row.startedAt!,
+		runId: required(row.runId, malformed), workflowName: required(row.workflowName, malformed), status: row.status as RunStatus, startedAt: required(row.startedAt, malformed),
 		...(row.payload ? { payload: JSON.parse(row.payload) } : {}), ...(row.endedAt ? { endedAt: row.endedAt } : {}),
 		...(row.isError ? { isError: row.isError === '1' } : {}), ...(row.durationMs ? { durationMs: integer(row.durationMs) } : {}),
 		...(row.result ? { result: JSON.parse(row.result) } : {}), ...(row.error ? { error: JSON.parse(row.error) } : {}),
@@ -858,7 +884,10 @@ class RedisEventStreamStore implements EventStreamStore {
 		const sequences = strings(await this.backend.command('ZRANGEBYSCORE', [this.backend.keys.eventOrder(path), `(${start}`, '+inf', 'LIMIT', 0, limit + 1]));
 		const page = sequences.slice(0, limit);
 		const values = page.length > 0 ? strings(await this.backend.command('HMGET', [this.backend.keys.eventEntries(path), ...page])) : [];
-		const events = page.map((sequence, index) => ({ data: JSON.parse(values[index]!), offset: formatOffset(integer(sequence)) }));
+		const events = page.map((sequence, index) => ({
+			data: JSON.parse(required(values[index], 'Persisted Redis event stream entry is malformed.')),
+			offset: formatOffset(integer(sequence)),
+		}));
 		return { events, nextOffset: events.at(-1)?.offset ?? formatOffset(start), upToDate: sequences.length <= limit, closed: meta.closed };
 	}
 
