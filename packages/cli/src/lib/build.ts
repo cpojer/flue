@@ -258,15 +258,15 @@ function resolvePlugin(options: BuildOptions): BuildPlugin {
 	}
 }
 
-function discoverAgents(sourceRoot: string): AgentInfo[] {
+export function discoverAgents(sourceRoot: string): AgentInfo[] {
 	return discoverModules(sourceRoot, 'agent');
 }
 
-function discoverWorkflows(sourceRoot: string): WorkflowInfo[] {
+export function discoverWorkflows(sourceRoot: string): WorkflowInfo[] {
 	return discoverModules(sourceRoot, 'workflow');
 }
 
-function discoverChannels(sourceRoot: string): ChannelInfo[] {
+export function discoverChannels(sourceRoot: string): ChannelInfo[] {
 	return discoverModules(sourceRoot, 'channel');
 }
 

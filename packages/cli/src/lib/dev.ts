@@ -19,6 +19,9 @@ import {
 	build,
 	cloudflareViteConfigPath,
 	createCloudflareViteConfig,
+	discoverAgents,
+	discoverChannels,
+	discoverWorkflows,
 	viteInputDir,
 } from './build.ts';
 import { createEnvLoader, type EnvLoader, selectEnvFile } from './env.ts';
@@ -134,9 +137,9 @@ export async function dev(options: DevOptions): Promise<void> {
 		['source', path.relative(root, sourceRoot) || '.'],
 		['output', path.relative(root, output) || '.'],
 	]);
-	section('agents', listModuleNames(sourceRoot, 'agents'));
-	section('workflows', listModuleNames(sourceRoot, 'workflows'));
-	section('channels', listModuleNames(sourceRoot, 'channels'));
+	section('agents', discoverAgents(sourceRoot).map((agent) => agent.name));
+	section('workflows', discoverWorkflows(sourceRoot).map((workflow) => workflow.name));
+	section('channels', discoverChannels(sourceRoot).map((channel) => channel.name));
 	console.error('');
 	if (reloader.url) {
 		const exampleAgent = pickExampleAgentName(sourceRoot);
@@ -622,28 +625,5 @@ function isSourceStructurePath(root: string, sourceRoot: string, relPath: string
 }
 
 function pickExampleAgentName(sourceRoot: string): string | null {
-	try {
-		const agentsDir = path.join(sourceRoot, 'agents');
-		if (!fs.existsSync(agentsDir)) return null;
-		for (const entry of fs.readdirSync(agentsDir)) {
-			const match = entry.match(/^([a-zA-Z0-9_-]+)\.(ts|js|mts|mjs)$/);
-			if (match?.[1]) return match[1];
-		}
-		return null;
-	} catch {
-		return null;
-	}
-}
-
-function listModuleNames(sourceRoot: string, directory: 'agents' | 'workflows' | 'channels'): string[] {
-	try {
-		const modulesDir = path.join(sourceRoot, directory);
-		if (!fs.existsSync(modulesDir)) return [];
-		return fs
-			.readdirSync(modulesDir)
-			.map((entry) => entry.match(/^([a-zA-Z0-9_-]+)\.(ts|js|mts|mjs)$/)?.[1])
-			.filter((name): name is string => Boolean(name));
-	} catch {
-		return [];
-	}
+	return discoverAgents(sourceRoot)[0]?.name ?? null;
 }
