@@ -36,7 +36,7 @@ class MirageSandboxApi implements SandboxApi {
     private flueContextId: string,
   ) {}
 
-  /* ... generated workspace.fs file operations and shell-backed recursive operations ... */
+  /* ... generated workspace.fs operations; rm rejects recursive and force before mutation ... */
 
   async stat(path: string): Promise<FileStat> {
     const s = await this.workspace.fs.stat(path);
@@ -124,7 +124,7 @@ export function mirage(workspace: MirageWorkspace, options?: MirageAdapterOption
 }
 ```
 
-Pass `mirage(workspace)` as an agent's `sandbox` to expose mounted resources through a Mirage session keyed by the Flue context id. File stats preserve Mirage's unknown size or modification time by omitting those fields; `timeoutMs` creates a millisecond timeout signal, caller cancellation takes precedence, and only timeout cancellation becomes an exit-code-124 result.
+Pass `mirage(workspace)` as an agent's `sandbox` to expose mounted resources through a Mirage session keyed by the Flue context id. File stats preserve Mirage's unknown size or modification time by omitting those fields; `timeoutMs` creates a millisecond timeout signal, caller cancellation takes precedence, and only timeout cancellation becomes an exit-code-124 result. Mirage's direct filesystem API does not implement recursive or force removal, so the adapter rejects either option before mutation.
 
 ## Configure
 

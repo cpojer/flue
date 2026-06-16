@@ -29,7 +29,7 @@ convention.
 
 ## Install the adapter and driver
 
-Install `@flue/mysql` and [`mysql2`](https://sidorares.github.io/node-mysql2/docs)
+Install `@flue/mysql` and [`mysql2@^3.22.5`](https://sidorares.github.io/node-mysql2/docs)
 with the project's package manager. `@flue/mysql` is driver-free at runtime;
 the project owns pooling, TLS, credentials, and connection lifecycle.
 

@@ -29,7 +29,7 @@ class DaytonaSandboxApi implements SandboxApi {
 
   /* Implements file reads, writes, stat, listing, existence, and mkdir with sandbox.fs. */
 
-  /* Implements rm() with sandbox.fs.deleteFile(), forwarding recursive support. */
+  /* Forwards recursive removal and rejects unsupported force before deletion. */
 
   /* Implements exec() with executeCommand(), rounding timeoutMs up to whole seconds. */
 }
@@ -45,7 +45,7 @@ export function daytona(sandbox: DaytonaSandbox): SandboxFactory {
 }
 ```
 
-Pass an initialized Daytona `Sandbox` to `daytona(...)`, then assign the returned factory to an agent's `sandbox` property. Flue uses the provider's working directory as the workspace root, exposes Daytona filesystem and process operations through the session, preserves Daytona's available file metadata, and rounds millisecond command deadlines up to the SDK's whole-second timeout; your application remains responsible for sandbox creation and lifecycle.
+Pass an initialized Daytona `Sandbox` to `daytona(...)`, then assign the returned factory to an agent's `sandbox` property. Flue uses the provider's working directory as the workspace root, exposes Daytona filesystem and process operations through the session, preserves Daytona's available file metadata, and rounds millisecond command deadlines up to the SDK's whole-second timeout. Daytona supports recursive deletion but not force semantics, so the adapter rejects `force` before deletion. Your application remains responsible for sandbox creation and lifecycle.
 
 ## Configure
 

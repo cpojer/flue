@@ -35,7 +35,7 @@ and select the first existing source root: `<root>/.flue/`, then `<root>/src/`,
 then `<root>/`. Check for an existing `db.ts`; if one is present, confirm with
 the user before replacing it. Inspect the project's secret conventions.
 
-Install `@flue/mongodb` and the official `mongodb` driver with the project's
+Install `@flue/mongodb` and the official `mongodb@^6.17.0` driver with the project's
 package manager. The adapter does not bundle a production driver; the project
 owns credentials, TLS, pooling, timeouts, and client lifecycle.
 

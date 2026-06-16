@@ -35,8 +35,8 @@ owns driver selection, pooling, TLS, and every connection option.
 
 Install `@flue/postgres` plus one Postgres driver. If the project already
 depends on a Postgres driver, reuse it. Otherwise use
-[`pg`](https://node-postgres.com/) (node-postgres) and install the matching
-`@types/pg` development dependency. Ask the user before choosing a different
+[`pg@^8.21.0`](https://node-postgres.com/) (node-postgres) and install the matching
+`@types/pg@^8.20.0` development dependency. Ask the user before choosing a different
 driver when the choice is consequential for their deployment.
 
 ## Create `db.ts`

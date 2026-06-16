@@ -259,7 +259,6 @@ export const docsSections: DocsSection[] = [
 					{ title: 'islo', slug: 'ecosystem/sandboxes/islo' },
 					{ title: 'Mirage', slug: 'ecosystem/sandboxes/mirage' },
 					{ title: 'Modal', slug: 'ecosystem/sandboxes/modal' },
-					{ title: 'smolvm', slug: 'ecosystem/sandboxes/smolvm' },
 					{ title: 'Vercel Sandbox', slug: 'ecosystem/sandboxes/vercel' },
 				],
 			},

@@ -18,7 +18,7 @@ first existing source root: `<root>/.flue/`, then `<root>/src/`, then
 `<root>/`. Inspect existing agents, environment types, secret conventions, and
 which Notion page or comment events the application needs.
 
-Install `@flue/notion` and the official `@notionhq/client@5.22.0`. In a strict
+Install `@flue/notion` and the official `@notionhq/client@^5.22.0`. In a strict
 TypeScript project, keep the compatible `@types/node` peer available because
 the official client's declarations import `node:http`, even when the runtime
 uses Fetch. Add it as a development dependency when the package manager does

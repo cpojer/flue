@@ -20,7 +20,7 @@
 
 import type { Sandbox as DaytonaSandbox } from '@daytona/sdk';
 import type { FileStat, SandboxApi, SandboxFactory, SessionEnv } from '@flue/runtime';
-import { createSandboxSessionEnv } from '@flue/runtime';
+import { createSandboxSessionEnv, SandboxOperationUnsupportedError } from '@flue/runtime';
 
 // ─── DaytonaSandboxApi ──────────────────────────────────────────────────────
 
@@ -82,6 +82,13 @@ class DaytonaSandboxApi implements SandboxApi {
 	}
 
 	async rm(path: string, options?: { recursive?: boolean; force?: boolean }): Promise<void> {
+		if (options?.force) {
+			throw new SandboxOperationUnsupportedError({
+				operation: 'rm',
+				provider: 'Daytona',
+				options: ['force'],
+			});
+		}
 		await this.sandbox.fs.deleteFile(path, options?.recursive);
 	}
 

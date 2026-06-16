@@ -11,7 +11,7 @@
 	"dependencies": {
 		"@flue/resend": "workspace:*",
 		"@flue/runtime": "workspace:*",
-		"resend": "6.12.4"
+		"resend": "*"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "0.16.15",

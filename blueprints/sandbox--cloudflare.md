@@ -74,7 +74,7 @@ The short version, for your reference:
 1. Install `@cloudflare/sandbox` in the user's project:
 
    ```bash
-   npm install @cloudflare/sandbox
+   npm install @cloudflare/sandbox@^0.11.0
    ```
 
    (Use the user's package manager — `pnpm add`, `yarn add`, etc.)

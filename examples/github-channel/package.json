@@ -10,7 +10,7 @@
 	"dependencies": {
 		"@flue/github": "workspace:*",
 		"@flue/runtime": "workspace:*",
-		"@octokit/rest": "^22.0.1"
+		"@octokit/rest": "*"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "0.16.15",

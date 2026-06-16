@@ -18,7 +18,7 @@ first existing source root: `<root>/.flue/`, then `<root>/src/`, then
 `<root>/`. Inspect existing agents, environment types, secret conventions, and
 which Telegram Update families the application handles.
 
-Install `@flue/telegram` and `grammy@^1.43.0`. Flue owns verified webhook
+Install `@flue/telegram` and `grammy@^1.44.0`. Flue owns verified webhook
 ingress. The project owns grammY's full `Api` client, update policy, durable
 deduplication, and every outbound tool.
 

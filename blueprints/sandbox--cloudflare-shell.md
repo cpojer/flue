@@ -278,7 +278,7 @@ This adapter imports Cloudflare Shell and codemode. If the user's
 manager:
 
 ```bash
-npm install @cloudflare/shell @cloudflare/codemode
+npm install @cloudflare/shell@^0.3.8 @cloudflare/codemode@^0.3.8
 ```
 
 ## Authentication

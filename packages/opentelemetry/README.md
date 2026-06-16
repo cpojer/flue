@@ -19,7 +19,7 @@ app.route('/', flue());
 export default app;
 ```
 
-`observedEventTypes` lists every event type the observer acts on. Registering with `{ types: observedEventTypes }` lets the runtime skip snapshot serialization for high-frequency streaming events (such as `message_update`) that the observer ignores.
+`observedEventTypes` lists every event type the observer acts on. Registering with `{ types: observedEventTypes }` lets the runtime skip snapshot serialization for high-frequency streaming delta events that the observer ignores.
 
 Pass a tracer when the application already owns a configured tracer instance:
 

@@ -21,7 +21,7 @@ export interface OpenTelemetryObserverOptions {
  * Every event type the observer returned by {@link createOpenTelemetryObserver}
  * acts on. Pass as `observe(createOpenTelemetryObserver(), { types: observedEventTypes })`
  * so the runtime skips snapshot serialization for high-frequency streaming
- * events (such as `message_update`) that the observer ignores.
+ * delta events that the observer ignores.
  *
  * Must stay in sync with the `event.type` dispatch chain inside
  * {@link createOpenTelemetryObserver}.

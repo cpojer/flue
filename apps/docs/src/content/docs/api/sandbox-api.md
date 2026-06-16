@@ -45,6 +45,7 @@ Import these from `@flue/runtime`:
 - `SessionToolFactory` is the optional model-facing tool factory type for a custom sandbox.
 - `SessionEnv` is what `createSandboxSessionEnv` returns. Do not construct one yourself.
 - `FileStat` is the return type for `stat()`.
+- `SandboxOperationUnsupportedError` rejects filesystem options that a provider cannot implement exactly.
 
 Do not import internal runtime paths. `@flue/runtime` is the public surface for adapter authors.
 
@@ -120,7 +121,7 @@ Return a `SessionEnv` from `createSessionEnv`, but get it from `createSandboxSes
 
 ## Required `SandboxApi` methods
 
-Implement every method below. If your provider SDK does not have a direct analogue for an operation, fall back to shell commands through `exec()`. The Daytonan adapter does this for `mkdir -p`, for example.
+Implement every method below. If your provider SDK does not have a direct analogue for an operation, use a shell command only when shell execution is the adapter's normal filesystem mechanism. Do not add option-specific shell workarounds around an otherwise direct filesystem API. Reject options that the direct API cannot honor exactly before mutation.
 
 ### `readFile(path)`
 
@@ -154,7 +155,7 @@ Create a directory. If `options.recursive` is set, create parents as needed. If 
 
 ### `rm(path, options?)`
 
-Delete a file or directory. Honor `options.recursive` and `options.force`.
+Delete a file or directory. Implement `options.recursive` and `options.force` exactly or reject unsupported requested options with `SandboxOperationUnsupportedError` before any mutation. Never ignore an option or leave its behavior provider-defined. A direct filesystem adapter must not shell out only to emulate unsupported removal flags; shell-native adapters may continue to implement removal through their normal shell filesystem path.
 
 ### `exec(command, options?)`
 
@@ -174,7 +175,7 @@ Sandbox adapter factories therefore take no `cleanup` option, and `createSandbox
 
 ## Reference implementation
 
-See the deployed [Daytona blueprint](https://flueframework.com/cli/blueprints/daytona.md) for a complete implementation. It demonstrates shell fallback for recursive mkdir, `exists()` error handling, and buffer or string conversion in `writeFile()`.
+See the deployed [Daytona blueprint](https://flueframework.com/cli/blueprints/daytona.md) for a complete implementation. It demonstrates explicit rejection of unsupported `force` removal, `exists()` error handling, and buffer or string conversion in `writeFile()`.
 
 ## Sandbox adapter file location
 

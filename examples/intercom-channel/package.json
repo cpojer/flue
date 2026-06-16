@@ -11,7 +11,7 @@
 	"dependencies": {
 		"@flue/intercom": "workspace:*",
 		"@flue/runtime": "workspace:*",
-		"intercom-client": "7.0.3"
+		"intercom-client": "*"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "0.16.15",

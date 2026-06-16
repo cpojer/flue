@@ -72,7 +72,7 @@ Write this file verbatim. Do not "improve" it — it conforms to the published
  * const session = await harness.session();
  * ```
  */
-import { createSandboxSessionEnv } from '@flue/runtime';
+import { createSandboxSessionEnv, SandboxOperationUnsupportedError } from '@flue/runtime';
 import type { SandboxApi, SandboxFactory, SessionEnv, FileStat } from '@flue/runtime';
 import type { Workspace as MirageWorkspace } from '@struktoai/mirage-core';
 
@@ -105,9 +105,9 @@ function shellQuote(value: string): string {
  *
  * Filesystem operations route through `workspace.fs.*` (Mirage's direct
  * VFS API) for read/write/readdir/stat/exists/single-level mkdir.
- * Recursive `mkdir -p` and `rm -rf` shell out via `workspace.execute()`
- * because `WorkspaceFS` exposes only single-level `mkdir` and
- * `unlink`/`rmdir`.
+ * Recursive `mkdir -p` shells out via `workspace.execute()` because
+ * `WorkspaceFS` exposes only single-level `mkdir`. Removal stays on the
+ * filesystem API and rejects unsupported recursive/force options.
  *
  * `cwd`, `env`, and `signal` (including `AbortSignal.timeout(...)`) all
  * pass directly through to `ExecuteOptions` — Mirage runs each call in an
@@ -178,22 +178,17 @@ class MirageSandboxApi implements SandboxApi {
 	}
 
 	async rm(path: string, options?: { recursive?: boolean; force?: boolean }): Promise<void> {
-		// `WorkspaceFS` only exposes `unlink` (file) and `rmdir` (empty dir).
-		// For Flue's `recursive` / `force`, shell out to Mirage's `rm`.
-		if (options?.recursive || options?.force) {
-			const flags: string[] = [];
-			if (options.recursive) flags.push('r');
-			if (options.force) flags.push('f');
-			const result = await this.runShell(`rm -${flags.join('')} ${shellQuote(path)}`);
-			if (result.exitCode !== 0) {
-				throw new Error(
-					`[flue:mirage] rm failed for ${path}: ` +
-						(result.stderr || result.stdout || `exit ${result.exitCode}`),
-				);
-			}
-			return;
+		const unsupported = [
+			options?.recursive ? 'recursive' : undefined,
+			options?.force ? 'force' : undefined,
+		].filter((option): option is string => option !== undefined);
+		if (unsupported.length > 0) {
+			throw new SandboxOperationUnsupportedError({
+				operation: 'rm',
+				provider: 'Mirage',
+				options: unsupported,
+			});
 		}
-		// Plain delete: try unlink first, fall back to rmdir for empty dirs.
 		try {
 			await this.workspace.fs.unlink(path);
 		} catch {
@@ -309,13 +304,13 @@ you can't tell which target they're on, check `package.json` scripts for
 For `--target node`:
 
 ```bash
-npm install @struktoai/mirage-node
+npm install @struktoai/mirage-node@^0.0.2
 ```
 
 For `--target cloudflare`:
 
 ```bash
-npm install @struktoai/mirage-browser
+npm install @struktoai/mirage-browser@^0.0.2
 ```
 
 (Use the user's package manager — `pnpm add`, `yarn add`, etc. if their

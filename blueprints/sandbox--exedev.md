@@ -86,7 +86,10 @@ Write this file verbatim. Do not "improve" it — it conforms to the published
  * }
  * ```
  */
-import { createSandboxSessionEnv } from "@flue/runtime";
+import {
+  createSandboxSessionEnv,
+  SandboxOperationUnsupportedError,
+} from "@flue/runtime";
 import type {
   FileStat,
   SandboxApi,
@@ -535,12 +538,16 @@ export class ExeDevSandboxApi implements SandboxApi {
   }
 
   async rm(filePath: string, options?: { recursive?: boolean; force?: boolean }): Promise<void> {
-    let flags = "";
-    if (options?.recursive) flags += "r";
-    if (options?.force) flags += "f";
-    if (flags) {
-      await this.exec(`rm -${flags} '${shellEscape(filePath)}'`);
-      return;
+    const unsupported = [
+      options?.recursive ? "recursive" : undefined,
+      options?.force ? "force" : undefined,
+    ].filter((option): option is string => option !== undefined);
+    if (unsupported.length > 0) {
+      throw new SandboxOperationUnsupportedError({
+        operation: "rm",
+        provider: "exe.dev",
+        options: unsupported,
+      });
     }
     const sftp = await this.getSftp();
     return new Promise<void>((resolve, reject) => {
@@ -650,8 +657,8 @@ Flue's Node target and the user's project needs to depend on `ssh2` directly.
 If their `package.json` does not already list it, add it:
 
 ```bash
-npm install ssh2
-npm install -D @types/ssh2
+npm install ssh2@^1.17.0
+npm install -D @types/ssh2@^1.15.5
 ```
 
 (Use the user's package manager — `pnpm add`, `yarn add`, etc. if their

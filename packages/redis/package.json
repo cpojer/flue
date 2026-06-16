@@ -17,7 +17,9 @@
 	},
 	"main": "./dist/index.mjs",
 	"types": "./dist/index.d.mts",
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"engines": {
 		"node": ">=22.18.0"
 	},
@@ -30,7 +32,7 @@
 		"@flue/runtime": "workspace:*"
 	},
 	"devDependencies": {
-		"redis": "^5.6.1",
+		"redis": "^5.12.1",
 		"tsdown": "^0.22.0",
 		"typescript": "^6.0.3",
 		"vitest": "^4.1.6"

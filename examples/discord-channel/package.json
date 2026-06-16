@@ -10,7 +10,7 @@
 		"test:workerd": "vitest run --config vitest.workerd.config.ts"
 	},
 	"dependencies": {
-		"@discordjs/rest": "^2.6.1",
+		"@discordjs/rest": "*",
 		"@flue/discord": "workspace:*",
 		"@flue/runtime": "workspace:*"
 	},

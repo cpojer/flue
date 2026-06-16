@@ -1,7 +1,7 @@
 ---
 title: Events and records
 description: SDK event, workflow-run record, and normalized model-turn types.
-lastReviewedAt: 2026-06-12
+lastReviewedAt: 2026-06-15
 ---
 
 ## `FlueEvent`
@@ -10,25 +10,27 @@ lastReviewedAt: 2026-06-12
 
 Every delivered event carries the durable event-format version `v: 1`, a per-context `eventIndex`, and a `timestamp`. The SDK union mirrors the wire format: `turn_request` is in-process only on the server (`observe()` subscribers and exporters) and never appears on streams the SDK reads.
 
+`message_start` and `message_end` bound both user and assistant messages. Text and thinking deltas are best-effort live progress; for a completed assistant message, `message_end` is authoritative. A reader that attaches after generation starts may miss earlier partial output until it arrives. Internal interrupted-turn recovery uses separate durable state and is unaffected by this public stream behavior.
+
 ## `AttachedAgentEvent`
 
 `AttachedAgentEvent` is emitted by direct interactions with persistent agent instances. It excludes workflow-run lifecycle events, requires `instanceId`, and does not include `runId`.
 
 ## Run types
 
-| Type                 | Description                                                                                     |
-| -------------------- | ----------------------------------------------------------------------------------------------- |
-| `RunRecord`          | Persisted workflow-run record, including the workflow name, status, timestamps, payload, result, and error fields. |
-| `RunStatus`          | Workflow-run status: `'active'`, `'completed'`, or `'errored'`.                                 |
+| Type        | Description                                                                                                        |
+| ----------- | ------------------------------------------------------------------------------------------------------------------ |
+| `RunRecord` | Persisted workflow-run record, including the workflow name, status, timestamps, payload, result, and error fields. |
+| `RunStatus` | Workflow-run status: `'active'`, `'completed'`, or `'errored'`.                                                    |
 
 ## Normalized model-turn types
 
 `turn` events expose normalized model data through these exported types:
 
-| Type                   | Description                                                              |
-| ---------------------- | ------------------------------------------------------------------------ |
-| `LlmAssistantMessage`  | Normalized assistant message.                                            |
-| `LlmTextContent`       | Text content.                                                            |
-| `LlmThinkingContent`   | Reasoning content.                                                       |
-| `LlmToolCall`          | Tool call content.                                                       |
-| `LlmTurnPurpose`       | Model-turn purpose: `'agent'`, `'compaction'`, or `'compaction_prefix'`. |
+| Type                  | Description                                                              |
+| --------------------- | ------------------------------------------------------------------------ |
+| `LlmAssistantMessage` | Normalized assistant message.                                            |
+| `LlmTextContent`      | Text content.                                                            |
+| `LlmThinkingContent`  | Reasoning content.                                                       |
+| `LlmToolCall`         | Tool call content.                                                       |
+| `LlmTurnPurpose`      | Model-turn purpose: `'agent'`, `'compaction'`, or `'compaction_prefix'`. |

@@ -12,7 +12,7 @@
 	"dependencies": {
 		"@flue/runtime": "workspace:*",
 		"@flue/whatsapp": "workspace:*",
-		"@kapso/whatsapp-cloud-api": "0.2.1"
+		"@kapso/whatsapp-cloud-api": "*"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "0.16.15",

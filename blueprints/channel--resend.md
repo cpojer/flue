@@ -19,7 +19,7 @@ first existing source root: `<root>/.flue/`, then `<root>/src/`, then
 receiving-domain setup, and which Resend email, contact, or domain events the
 application needs.
 
-Install `@flue/resend` and the official `resend@6.12.4` SDK with the project's
+Install `@flue/resend` and the official `resend@^6.12.4` SDK with the project's
 package manager. Add compatible `@types/node` and `@types/react` development
 dependencies because the SDK's public declarations reference `Buffer` and
 React email types. Both are declaration-only requirements; they do not add

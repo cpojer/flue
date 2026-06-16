@@ -19,8 +19,8 @@ first existing source root: `<root>/.flue/`, then `<root>/src/`, then
 whether the application responds to issue comments, pull-request conversation
 comments, inline review comments, opened issues, or another verified delivery.
 
-Install `@flue/github` and the official `@octokit/rest` SDK with the project's
-package manager. Do not add a generic GitHub tool collection.
+Install `@flue/github` and the official `@octokit/rest@^22.0.1` SDK with the
+project's package manager. Do not add a generic GitHub tool collection.
 
 ## Create the channel
 

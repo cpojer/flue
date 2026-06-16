@@ -3,8 +3,8 @@
 	"private": true,
 	"type": "module",
 	"dependencies": {
-		"@cloudflare/codemode": "^0.3.8",
-		"@cloudflare/shell": "^0.3.8",
+		"@cloudflare/codemode": "*",
+		"@cloudflare/shell": "*",
 		"@flue/runtime": "workspace:*",
 		"agents": "^0.14.1",
 		"hono": "^4.7.0",

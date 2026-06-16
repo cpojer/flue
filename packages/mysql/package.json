@@ -17,7 +17,9 @@
 	},
 	"main": "./dist/index.mjs",
 	"types": "./dist/index.d.mts",
-	"files": ["dist"],
+	"files": [
+		"dist"
+	],
 	"engines": {
 		"node": ">=22.18.0"
 	},
@@ -30,7 +32,7 @@
 		"@flue/runtime": "workspace:*"
 	},
 	"devDependencies": {
-		"mysql2": "^3.14.1",
+		"mysql2": "^3.22.5",
 		"tsdown": "^0.22.0",
 		"typescript": "^6.0.3",
 		"vitest": "^4.1.6"

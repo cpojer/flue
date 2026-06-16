@@ -28,7 +28,7 @@ the project already has an adapter; confirm with the user before replacing it.
 Inspect how the project reads secrets so the connection string follows the same
 convention.
 
-Install `@flue/postgres`, `pg`, and the matching `@types/pg` development
+Install `@flue/postgres`, `pg@^8.21.0`, and the matching `@types/pg@^8.20.0` development
 dependency with the project's package manager. `@flue/postgres` does not bundle
 a database driver; the project owns pooling, TLS, credentials, and connection
 lifecycle.

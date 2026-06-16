@@ -18,8 +18,8 @@ first existing source root: `<root>/.flue/`, then `<root>/src/`, then
 `<root>/`. Inspect existing agents, environment types, secret conventions, and
 whether the project uses one Twilio address or a Messaging Service.
 
-Install `@flue/twilio`. Flue owns signed webhook validation, exact public-URL
-handling, fixed account and destination identity, provider-native verified form
+Install `@flue/twilio` and `twilio@^6.0.2`. Flue owns signed webhook validation,
+exact public-URL handling, fixed account and destination identity, provider-native verified form
 fields, optional delivery-status callbacks, TwiML acknowledgement, and canonical
 conversation keys. The project owns credentials, outbound REST access, tools,
 dispatch policy, and durable duplicate admission.

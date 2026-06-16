@@ -270,7 +270,7 @@ depend on it directly. If their `package.json` does not already list it,
 add it:
 
 ```bash
-npm install @boxd-sh/sdk
+npm install @boxd-sh/sdk@^0.1.5
 ```
 
 (Use the user's package manager — `pnpm add`, `yarn add`, etc. if their

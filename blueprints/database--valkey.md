@@ -32,7 +32,7 @@ and select the first existing source root: `<root>/.flue/`, then `<root>/src/`,
 then `<root>/`. Check for an existing `db.ts`; if one is present, confirm with
 the user before replacing it. Inspect the project's secret conventions.
 
-Install `@flue/redis` and the official `redis` client with the project's package
+Install `@flue/redis` and the official `redis@^5.12.1` client with the project's package
 manager. `@flue/redis` does not bundle a production client; the project owns
 credentials, TLS, timeouts, reconnect behavior, and topology.
 
@@ -51,10 +51,11 @@ await client.connect();
 
 export default redis({
   command: (command, args = []) => client.sendCommand([command, ...args.map(String)]),
-  eval: (script, keys, args = []) => client.eval(script, {
-    keys,
-    arguments: args.map(String),
-  }),
+  eval: (script, keys, args = []) =>
+    client.eval(script, {
+      keys,
+      arguments: args.map(String),
+    }),
   pipeline: async (commands) => {
     const multi = client.multi();
     for (const { command, args = [] } of commands) {

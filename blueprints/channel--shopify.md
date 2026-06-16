@@ -19,7 +19,7 @@ first existing source root: `<root>/.flue/`, then `<root>/src/`, then
 Shopify installation storage, and which webhook topics the application needs.
 
 Install `@flue/shopify` and the official
-`@shopify/admin-api-client@1.1.2`. Add a compatible `@types/node` development
+`@shopify/admin-api-client@^1.1.2`. Add a compatible `@types/node` development
 dependency when the project does not already provide one because
 `@shopify/graphql-client` exposes a declaration-only `Buffer` reference. This
 does not add Node runtime code to a Worker bundle.

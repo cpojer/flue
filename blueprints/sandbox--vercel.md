@@ -185,7 +185,7 @@ depend on it directly. If their `package.json` does not already list it,
 add it:
 
 ```bash
-npm install @vercel/sandbox
+npm install @vercel/sandbox@^2.2.1
 ```
 
 (Use the user's package manager — `pnpm add`, `yarn add`, etc. if their

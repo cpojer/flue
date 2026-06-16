@@ -55,7 +55,7 @@ Write this file verbatim. Do not "improve" it — it conforms to the published
  * const session = await harness.session();
  * ```
  */
-import { createSandboxSessionEnv } from '@flue/runtime';
+import { createSandboxSessionEnv, SandboxOperationUnsupportedError } from '@flue/runtime';
 import type { SandboxApi, SandboxFactory, SessionEnv, FileStat } from '@flue/runtime';
 import type { Sandbox as DaytonaSandbox } from '@daytona/sdk';
 
@@ -114,6 +114,13 @@ class DaytonaSandboxApi implements SandboxApi {
 	}
 
 	async rm(path: string, options?: { recursive?: boolean; force?: boolean }): Promise<void> {
+		if (options?.force) {
+			throw new SandboxOperationUnsupportedError({
+				operation: 'rm',
+				provider: 'Daytona',
+				options: ['force'],
+			});
+		}
 		await this.sandbox.fs.deleteFile(path, options?.recursive);
 	}
 
@@ -165,7 +172,7 @@ depend on it directly. If their `package.json` does not already list it,
 add it:
 
 ```bash
-npm install @daytona/sdk
+npm install @daytona/sdk@^0.187.0
 ```
 
 (Use the user's package manager — `pnpm add`, `yarn add`, etc. if their

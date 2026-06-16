@@ -7,7 +7,7 @@
  *      that imports `app.ts` has a configured Sentry client.
  *
  *   2. Calls `observe(...)` to register a global Flue event subscriber
- *      that translates workflow-run fatal errors and explicit error logs into
+ *      that translates terminal Flue failures and explicit error logs into
  *      `Sentry.captureException(...)` calls with Flue correlation tags.
  *
  * Read top-to-bottom — there are no other Sentry-related files in the
@@ -20,8 +20,8 @@
  *
  * This is intentionally focused on **error reporting**:
  *
- *   - run-fatal errors (the handler throws / rejects) → captured as
- *     Sentry exceptions at `error` level.
+ *   - failed workflow runs, direct agent operations, and recovered durable
+ *     submissions → captured as Sentry exceptions at `error` level.
  *   - `ctx.log.error(...)` calls from handlers → captured as Sentry
  *     exceptions when an `error` attribute is present, otherwise as
  *     messages at `error` level.
@@ -36,11 +36,9 @@
  *   - It does not forward `ctx.log.info` / `.warn` to Sentry breadcrumbs
  *     or logs. Add `Sentry.addBreadcrumb({ ... })` inside the `observe`
  *     callback if you want that — it's a five-line change.
- *   - It does not capture per-operation or per-tool failures. Those are
- *     usually recoverable (the model handles tool errors and keeps
- *     going), so capturing them tends to be noise. If you want them,
- *     uncomment the `operation` / `tool` branches inside the
- *     `observe(...)` callback below.
+ *   - It does not capture workflow operation or tool failures separately.
+ *     Workflow failures are reported once at `run_end`; tool failures are
+ *     usually recoverable model input.
  *
  *
  * Isolate scoping (read this once, then forget about it)
@@ -95,99 +93,66 @@ Sentry.init({
 
 // ─── 2. The Flue → Sentry event bridge ──────────────────────────────────────
 
-// `observe` is the only Flue API this file uses besides `flue()`
-// itself. It is module-scoped on purpose: register once, fire for
-// every workflow run handled by this isolate, for the lifetime of
-// the isolate. There is no per-workflow wiring and no per-request
-// registration.
-//
-// The callback runs synchronously inside the Flue event emit path,
-// so it must be cheap and must not throw. (Sentry's `withScope` and
-// `captureException` are both synchronous JS calls that queue work
-// internally; they will not block the run.)
 const runOwnerTags = new Map<string, Record<string, string>>();
 
-observe((event) => {
-	// Common Flue correlation tags — attached to every Sentry
-	// capture made from this bridge so an investigator can pivot
-	// from a Sentry issue to a Flue run via:
-	//
-	//   GET /runs/<flue.run.id>
-	//
-	// or replay the run via the CLI:
-	//
-	//   flue logs <flue.run.id>
-	//
-	// Owner-specific tags are attached when the event carries enough
-	// metadata; the run id is globally unique and resolves to its owner
-	// via the run registry server-side.
-	const tags = flueCorrelationTags(event);
+observe(
+	(event) => {
+		if (event.type === 'run_start' || event.type === 'run_resume') {
+			runOwnerTags.set(event.runId, { 'flue.workflow': event.workflowName });
+			return;
+		}
 
-	// ─── Run-fatal: the handler threw or rejected ─────────────────────
-	//
-	// `run_end` fires exactly once per run. When `isError` is true,
-	// the handler did not return successfully — this is the
-	// canonical "something broke" signal.
-	if (event.type === 'run_end' && event.isError) {
-		Sentry.withScope((scope) => {
-			scope.setTags(tags);
-			scope.setLevel('error');
-			scope.setContext('flue.run', {
+		const tags = flueCorrelationTags(event);
+
+		if (event.type === 'run_end') {
+			runOwnerTags.delete(event.runId);
+			if (event.isError) captureIncident(event.error, tags, { durationMs: event.durationMs });
+			return;
+		}
+
+		if (event.type === 'operation' && event.isError && !event.runId) {
+			captureIncident(event.error, tags, {
 				durationMs: event.durationMs,
-				agentName: tags['flue.agent'],
-				workflowName: tags['flue.workflow'],
-				instanceId: tags['flue.instance.id'],
+				operationKind: event.operationKind,
 			});
-			Sentry.captureException(reconstructError(event.error));
-		});
-		return;
-	}
+			return;
+		}
 
-	// ─── Explicit handler-side error logs ─────────────────────────────
-	//
-	// `ctx.log.error(message, { error })` is how handler code says
-	// "I want this in my error reporter without crashing the run."
-	// We mirror Junior's convention: if the log carries an `error`
-	// attribute, capture it as an exception; otherwise capture the
-	// message itself at `error` level.
-	if (event.type === 'log' && event.level === 'error') {
-		Sentry.withScope((scope) => {
-			scope.setTags(tags);
-			scope.setLevel('error');
-			if (event.attributes) {
-				scope.setContext('flue.log_attributes', event.attributes);
-			}
-			const errorAttr = event.attributes?.error;
-			if (errorAttr) {
-				Sentry.captureException(reconstructError(errorAttr));
-			} else {
-				Sentry.captureMessage(event.message, 'error');
-			}
-		});
-		return;
-	}
+		if (event.type === 'submission_settled' && event.outcome === 'failed') {
+			captureIncident(event.error, tags);
+			return;
+		}
 
-	// ─── Not captured (and why) ───────────────────────────────────────
-	//
-	// `operation` events with `isError: true` represent a single
-	// `prompt()` / `skill()` / `task()` / `shell()` call that
-	// threw. If the agent handler caught and recovered, the run is
-	// still healthy — capturing here would be noise. If the
-	// handler did NOT catch, the same error propagates up to
-	// `run_end` above and is captured there.
-	//
-	// `tool` events with `isError: true` represent a tool body
-	// that threw or returned an error. The model usually keeps
-	// going with the error result and recovers. Capturing every
-	// tool error would drown out real incidents. Add a branch here
-	// if your agents do something where tool failures are
-	// catastrophic.
-	//
-	// Uncomment to enable:
-	//
-	//   if (event.type === 'operation' && event.isError) { ... }
-	//   if (event.type === 'tool' && event.isError) { ... }
-});
+		if (event.type === 'log' && event.level === 'error') {
+			Sentry.withScope((scope) => {
+				scope.setTags(tags);
+				scope.setLevel('error');
+				if (event.attributes) scope.setContext('flue.log_attributes', event.attributes);
+				if (Object.hasOwn(event.attributes ?? {}, 'error')) {
+					Sentry.captureException(reconstructError(event.attributes?.error));
+				} else {
+					Sentry.captureMessage(event.message, 'error');
+				}
+			});
+		}
+	},
+	{
+		types: ['run_start', 'run_resume', 'run_end', 'operation', 'submission_settled', 'log'],
+	},
+);
+
+function captureIncident(
+	error: unknown,
+	tags: Record<string, string>,
+	context?: Record<string, unknown>,
+): void {
+	Sentry.withScope((scope) => {
+		scope.setTags(tags);
+		scope.setLevel('error');
+		if (context) scope.setContext('flue.incident', context);
+		Sentry.captureException(reconstructError(error));
+	});
+}
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -202,16 +167,14 @@ observe((event) => {
 function flueCorrelationTags(event: FlueEvent): Record<string, string> {
 	const tags: Record<string, string> = event.runId ? { ...runOwnerTags.get(event.runId) } : {};
 	if (event.runId) tags['flue.run.id'] = event.runId;
+	if (event.instanceId) tags['flue.instance.id'] = event.instanceId;
+	if (event.dispatchId) tags['flue.dispatch.id'] = event.dispatchId;
+	if (event.submissionId) tags['flue.submission.id'] = event.submissionId;
 	if (event.harness) tags['flue.harness'] = event.harness;
 	if (event.session) tags['flue.session'] = event.session;
 	if (event.parentSession) tags['flue.parent_session'] = event.parentSession;
 	if (event.operationId) tags['flue.operation.id'] = event.operationId;
 	if (event.taskId) tags['flue.task.id'] = event.taskId;
-	if (event.type === 'run_start') {
-		const ownerTags = { 'flue.workflow': event.workflowName };
-		Object.assign(tags, ownerTags);
-		runOwnerTags.set(event.runId, ownerTags);
-	}
 	return tags;
 }
 

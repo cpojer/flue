@@ -3,7 +3,7 @@
 	"private": true,
 	"type": "module",
 	"dependencies": {
-		"@cloudflare/sandbox": "^0.11.0",
+		"@cloudflare/sandbox": "*",
 		"@flue/runtime": "workspace:*",
 		"agents": "^0.14.1"
 	},

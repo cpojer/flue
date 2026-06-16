@@ -18,7 +18,7 @@ first existing source root: `<root>/.flue/`, then `<root>/src/`, then
 `<root>/`. Inspect existing agents, environment types, secret conventions, and
 the interaction commands the application supports.
 
-Install `@flue/discord` and `@discordjs/rest`. Discord does not publish an
+Install `@flue/discord` and `@discordjs/rest@^2.6.1`. Discord does not publish an
 official JavaScript REST SDK; `@discordjs/rest` is the
 dominant community-maintained REST client. Do not add Discord Gateway or a
 long-lived bot connection for outbound REST calls.

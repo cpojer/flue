@@ -19,7 +19,7 @@ first existing source root: `<root>/.flue/`, then `<root>/src/`, then
 `<root>/`. Inspect existing agents, environment types, secret conventions, and
 which Google Chat event families the application needs.
 
-Install `@flue/google-chat` and `jose`. Do not use `google-auth-library` in the
+Install `@flue/google-chat` and `jose@^6.2.3`. Do not use `google-auth-library` in the
 canonical integration: its current package declares Node support and depends
 on Node-oriented authentication and HTTP packages. Use the documented
 service-account JWT assertion, OAuth token exchange, and Chat REST protocols

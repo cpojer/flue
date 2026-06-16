@@ -10,7 +10,7 @@
 	"dependencies": {
 		"@flue/runtime": "workspace:*",
 		"@flue/telegram": "workspace:*",
-		"grammy": "1.43.0"
+		"grammy": "*"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "0.16.15",

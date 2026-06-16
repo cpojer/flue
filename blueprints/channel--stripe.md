@@ -19,7 +19,7 @@ first existing source root: `<root>/.flue/`, then `<root>/src/`, then
 Stripe event destination's payload style, and which event types the application
 needs.
 
-Install `@flue/stripe` and Stripe's official `stripe@^22.2.0` SDK with the
+Install `@flue/stripe` and Stripe's official `stripe@^22.2.1` SDK with the
 project's package manager. In a TypeScript project, keep the compatible
 `@types/node` peer available because Stripe's declarations reference those
 types even when the runtime selects its Worker implementation. Add it as a

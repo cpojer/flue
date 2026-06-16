@@ -29,7 +29,7 @@ then `<root>/`. Check for an existing `db.ts` — if one is present, the project
 already has an adapter; confirm with the user before replacing it. Inspect how
 the project reads secrets.
 
-Install `@flue/libsql` and the official [`@libsql/client`](https://docs.turso.tech/sdk/ts/reference)
+Install `@flue/libsql` and the official [`@libsql/client@^0.17.3`](https://docs.turso.tech/sdk/ts/reference)
 with the project's package manager. `@flue/libsql` does not bundle a driver.
 
 The user creates the database and an auth token with the

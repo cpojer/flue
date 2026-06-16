@@ -69,7 +69,9 @@ export function Chat({ conversationId }: { conversationId: string }) {
 
       <form onSubmit={submit}>
         <input value={input} onChange={(event) => setInput(event.target.value)} />
-        <button disabled={!input.trim()} type="submit">Send</button>
+        <button disabled={!input.trim()} type="submit">
+          Send
+        </button>
       </form>
     </section>
   );
@@ -80,7 +82,7 @@ export function Chat({ conversationId }: { conversationId: string }) {
 
 Messages use a parts-based shape for text, reasoning, tool activity, and images. This shape mirrors AI SDK v5 `UIMessage`, but `@flue/react` neither depends on `ai` at runtime nor implements its transport protocol.
 
-By default, the hook rebuilds a transcript from the latest 100 server events rather than browser storage. Pass `history: 'all'` when the complete transcript is required.
+By default, the hook rebuilds a transcript from the latest 100 server events rather than browser storage. Pass `history: 'all'` when the complete transcript is required. Streaming deltas provide best-effort live progress, while `message_end` supplies the authoritative completed assistant message. If the hook attaches after generation starts, earlier partial output may be absent until `message_end` arrives. This delivery behavior does not affect the runtime's internal interrupted-turn recovery.
 
 ## Observe a workflow run
 
@@ -104,7 +106,9 @@ export function Report() {
 
   return (
     <section>
-      <button onClick={generate} type="button">Generate report</button>
+      <button onClick={generate} type="button">
+        Generate report
+      </button>
       <p>{run.status}</p>
       {run.logs.map((event) => (
         <pre key={`${event.timestamp}:${event.eventIndex}`}>{event.message}</pre>

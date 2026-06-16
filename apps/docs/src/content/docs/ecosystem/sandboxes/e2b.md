@@ -29,7 +29,7 @@ class E2BSandboxApi implements SandboxApi {
 
   /* Implements file reads, writes, stat, listing, existence, and mkdir with sandbox.files. */
 
-  /* Implements rm() with sandbox.files.remove(); recursive and force remain provider-defined. */
+  /* Rejects recursive or force before calling sandbox.files.remove(). */
 
   /* Implements exec() with sandbox.commands.run(), forwarding timeoutMs unchanged. */
 }
@@ -45,7 +45,7 @@ export function e2b(sandbox: E2BSandbox): SandboxFactory {
 }
 ```
 
-Pass an initialized E2B `Sandbox` to `e2b(...)`, then assign the returned factory to an agent's `sandbox` property. Flue resolves workspace paths from `/home/user`, exposes E2B's files and commands through session operations, forwards command timeouts in milliseconds, and reports only the file metadata E2B exposes; your application remains responsible for sandbox configuration and lifecycle.
+Pass an initialized E2B `Sandbox` to `e2b(...)`, then assign the returned factory to an agent's `sandbox` property. Flue resolves workspace paths from `/home/user`, exposes E2B's files and commands through session operations, forwards command timeouts in milliseconds, and reports only the file metadata E2B exposes. E2B's direct remove API has no recursive or force controls, so the adapter rejects either option before deletion. Your application remains responsible for sandbox configuration and lifecycle.
 
 ## Configure
 

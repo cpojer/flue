@@ -11,7 +11,7 @@
 	"dependencies": {
 		"@flue/runtime": "workspace:*",
 		"@flue/shopify": "workspace:*",
-		"@shopify/admin-api-client": "1.1.2"
+		"@shopify/admin-api-client": "*"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "0.16.15",

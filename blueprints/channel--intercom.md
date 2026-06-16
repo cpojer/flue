@@ -19,7 +19,7 @@ then `<root>/`. Inspect existing agents, environment types, secret conventions,
 Intercom installation storage, region selection, and the webhook topics the
 application needs.
 
-Install `@flue/intercom` and the official `intercom-client@7.0.3` with the
+Install `@flue/intercom` and the official `intercom-client@^7.0.3` with the
 project's package manager. Keep the SDK in project code; `@flue/intercom`
 verifies ingress directly with Web Crypto and does not depend on the provider
 client.

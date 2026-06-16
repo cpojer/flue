@@ -71,7 +71,7 @@ export function exedev(vm: ExeDevVm | string, options?: ExeDevAdapterOptions): S
 }
 ```
 
-Pass an SSH-reachable VM hostname or `ExeDevVm` to `exedev(...)` and assign the returned factory to an agent's `sandbox` property. Flue uses the detected remote home directory when available; `timeoutMs` remains in milliseconds and closes the SSH command stream at the deadline, returning exit code 124.
+Pass an SSH-reachable VM hostname or `ExeDevVm` to `exedev(...)` and assign the returned factory to an agent's `sandbox` property. Flue uses the detected remote home directory when available; `timeoutMs` remains in milliseconds and closes the SSH command stream at the deadline, returning exit code 124. File removal uses SFTP directly, so recursive and force options are rejected before mutation rather than emulated with a one-off shell command.
 
 ## Configure
 

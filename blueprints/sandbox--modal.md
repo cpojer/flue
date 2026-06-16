@@ -285,7 +285,7 @@ This adapter imports from `modal`, so the user's project needs to depend
 on it directly. If their `package.json` does not already list it, add it:
 
 ```bash
-npm install modal
+npm install modal@^0.8.0
 ```
 
 (Use the user's package manager — `pnpm add`, `yarn add`, etc. if their

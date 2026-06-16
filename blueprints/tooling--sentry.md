@@ -8,7 +8,8 @@ You are an AI coding agent adding Sentry error reporting to a Flue project. Use
 the SDK for the configured target, initialize it at the correct runtime
 boundary, and bridge selected Flue events into Sentry with correlation tags.
 
-The integration reports unhandled workflow failures and explicit
+The integration reports failed workflow runs, failed top-level operations for
+persistent agents, failed durable submission settlements, and explicit
 `ctx.log.error(...)` calls. It does not export prompts, model responses, tool
 arguments, traces, or AI metrics by default.
 
@@ -21,8 +22,8 @@ existing source root: `<root>/.flue/`, then `<root>/src/`, then `<root>/`. Inspe
 
 Determine the configured target before installing a Sentry package:
 
-- **Node:** install `@sentry/node`.
-- **Cloudflare:** install `@sentry/cloudflare`. Do not use `@sentry/node` through
+- **Node:** install `@sentry/node@^10.53.1`.
+- **Cloudflare:** install `@sentry/cloudflare@^10.53.1`. Do not use `@sentry/node` through
   `nodejs_compat`.
 
 If the target cannot be determined, ask the user. Do not install both SDKs to
@@ -33,11 +34,11 @@ make one static source file target-agnostic.
 Use these environment variables unless the project already has an established
 Sentry convention:
 
-| Variable | Purpose |
-| --- | --- |
-| `SENTRY_DSN` | Project DSN; keep it configurable through the deployment environment. |
-| `SENTRY_ENVIRONMENT` | Optional environment name such as `production` or `staging`. |
-| `SENTRY_RELEASE` | Optional release identifier such as a commit SHA. |
+| Variable             | Purpose                                                               |
+| -------------------- | --------------------------------------------------------------------- |
+| `SENTRY_DSN`         | Project DSN; keep it configurable through the deployment environment. |
+| `SENTRY_ENVIRONMENT` | Optional environment name such as `production` or `staging`.          |
+| `SENTRY_RELEASE`     | Optional release identifier such as a commit SHA.                     |
 
 Never invent a DSN or hard-code it in application source. A Sentry DSN permits
 event submission but does not grant read access to project data. Update an
@@ -105,12 +106,20 @@ observe(
     if (event.type === 'run_end') {
       runTags.delete(event.runId);
       if (!event.isError) return;
-      Sentry.withScope((scope) => {
-        scope.setTags(tags);
-        scope.setLevel('error');
-        scope.setContext('flue.run', { durationMs: event.durationMs });
-        Sentry.captureException(toError(event.error));
+      captureException(event.error, tags, { durationMs: event.durationMs });
+      return;
+    }
+
+    if (event.type === 'operation' && event.isError && !event.runId) {
+      captureException(event.error, tags, {
+        durationMs: event.durationMs,
+        operationKind: event.operationKind,
       });
+      return;
+    }
+
+    if (event.type === 'submission_settled' && event.outcome === 'failed') {
+      captureException(event.error, tags);
       return;
     }
 
@@ -126,8 +135,23 @@ observe(
       });
     }
   },
-  { types: ['run_start', 'run_resume', 'run_end', 'log'] },
+  {
+    types: ['run_start', 'run_resume', 'run_end', 'operation', 'submission_settled', 'log'],
+  },
 );
+
+function captureException(
+  error: unknown,
+  tags: Record<string, string>,
+  context?: Record<string, unknown>,
+): void {
+  Sentry.withScope((scope) => {
+    scope.setTags(tags);
+    scope.setLevel('error');
+    if (context) scope.setContext('flue.incident', context);
+    Sentry.captureException(toError(error));
+  });
+}
 
 function correlationTags(event: FlueEvent): Record<string, string> {
   const tags: Record<string, string> = event.runId ? { ...runTags.get(event.runId) } : {};
@@ -146,9 +170,7 @@ function toError(value: unknown): Error {
   if (value instanceof Error) return value;
   if (value && typeof value === 'object') {
     const source = value as { name?: unknown; message?: unknown; stack?: unknown };
-    const error = new Error(
-      typeof source.message === 'string' ? source.message : stringify(value),
-    );
+    const error = new Error(typeof source.message === 'string' ? source.message : stringify(value));
     if (typeof source.name === 'string') error.name = source.name;
     if (typeof source.stack === 'string') error.stack = source.stack;
     return error;
@@ -179,13 +201,17 @@ direct `hono` dependency when authoring that file.
 `observe(...)` is isolate-local. The explicit `types` filter avoids serializing
 high-frequency events that the bridge does not consume. Workflow failures carry
 `runId` and can be inspected with `flue logs <runId>`. Direct and dispatched
-agent interactions are not workflow runs; their captures use agent instance,
-session, submission, and dispatch correlation instead.
+agent interactions are not workflow runs; their failed top-level operations and
+failed durable settlements use agent instance, session, operation, submission,
+and dispatch correlation instead.
 
-Do not capture every failed operation or tool call by default. Those failures
-can be recoverable and would duplicate a later fatal `run_end` report. Do not
-forward prompts, model output, tool arguments, or arbitrary event payloads
-without an explicit data-handling decision.
+The `!event.runId` guard is the deduplication boundary: workflow operations can
+fail on the way to one canonical failed `run_end`, while operations without a
+`runId` have no workflow terminal event. Do not capture lower-level failed tool,
+task, turn, or compaction events; they can be recoverable and would duplicate
+the selected terminal signals. Do not forward prompts, model output, tool
+arguments, or arbitrary event payloads without an explicit data-handling
+decision.
 
 ## Wrap Cloudflare Durable Objects
 
@@ -247,17 +273,21 @@ claim the Durable Object wrapper covers the outer HTTP application.
 
 1. Type-check the project and build its configured Flue target.
 2. Start the real target runtime with a non-production Sentry project.
-3. Trigger a workflow that throws and confirm one Sentry issue with
-   `flue.run.id` and `flue.workflow` tags.
-4. Call `ctx.log.error(...)` once with an `error` attribute and once without;
+3. Trigger a workflow whose operation fails and escapes the workflow; confirm
+   exactly one Sentry issue from `run_end`, with `flue.run.id` and
+   `flue.workflow` tags.
+4. Trigger a failed direct or dispatched agent operation and confirm one issue
+   with no `flue.run.id`; reconcile a durable submission as failed and confirm
+   one settlement issue.
+5. Call `ctx.log.error(...)` once with an `error` attribute and once without;
    confirm an exception and an error-level message are captured.
-5. On Cloudflare, exercise at least one wrapped agent or workflow Durable Object
+6. On Cloudflare, exercise at least one wrapped agent or workflow Durable Object
    under workerd and confirm the event is delivered from that isolate.
-6. Remove the DSN and confirm the application still starts and capture calls are
+7. Remove the DSN and confirm the application still starts and capture calls are
    no-ops.
-7. Inspect event payloads to confirm prompts, model responses, tool arguments,
+8. Inspect event payloads to confirm prompts, model responses, tool arguments,
    and secrets were not exported.
-8. If Node preloading or Hono middleware was added, verify that behavior
+9. If Node preloading or Hono middleware was added, verify that behavior
    separately and check for duplicate reports.
 
 When updating an existing integration, inspect and compare it against this

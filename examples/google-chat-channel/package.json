@@ -12,7 +12,7 @@
 	"dependencies": {
 		"@flue/google-chat": "workspace:*",
 		"@flue/runtime": "workspace:*",
-		"jose": "6.2.3"
+		"jose": "*"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "0.16.15",

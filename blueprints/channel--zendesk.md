@@ -19,7 +19,7 @@ then `<root>/`. Inspect existing agents, environment types, secret
 conventions, Zendesk account configuration, and the event families the
 application needs.
 
-Install `@flue/zendesk` and `lossless-json@4.3.0`. Do not install
+Install `@flue/zendesk` and `lossless-json@^4.3.0`. Do not install
 `node-zendesk` for this blueprint: Zendesk lists it as community maintained rather
 than officially supported, and a narrow native Fetch client is portable across
 Node and Cloudflare Workers. Add a compatible `@types/node` development

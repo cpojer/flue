@@ -62,7 +62,7 @@ Write this file verbatim. Do not "improve" it — it conforms to the published
  * const session = await harness.session();
  * ```
  */
-import { createSandboxSessionEnv } from '@flue/runtime';
+import { createSandboxSessionEnv, SandboxOperationUnsupportedError } from '@flue/runtime';
 import type { SandboxApi, SandboxFactory, SessionEnv, FileStat } from '@flue/runtime';
 import type { Sandbox as E2BSandbox } from 'e2b';
 
@@ -73,8 +73,8 @@ import type { Sandbox as E2BSandbox } from 'e2b';
  * (`read`, `write`, `makeDir`, `remove`, `list`, `exists`, `getInfo`) so we
  * use those rather than shelling out. `makeDir` is always recursive on E2B,
  * so the `recursive: false` case maps to the same call. `remove` has no
- * recursive/force flags — it just removes the path — so those options are
- * accepted for interface compatibility but ignored.
+ * recursive/force flags, so the adapter explicitly rejects either option
+ * before calling the provider.
  *
  * `commands.run()` returns `{ stdout, stderr, exitCode }` directly. Both E2B
  * and Flue express command timeouts in milliseconds, so the adapter forwards
@@ -131,9 +131,18 @@ class E2BSandboxApi implements SandboxApi {
 		await this.sandbox.files.makeDir(path);
 	}
 
-	async rm(path: string, _options?: { recursive?: boolean; force?: boolean }): Promise<void> {
-		// E2B's remove() takes no flags, so recursive and force semantics
-		// remain provider-defined.
+	async rm(path: string, options?: { recursive?: boolean; force?: boolean }): Promise<void> {
+		const unsupported = [
+			options?.recursive ? 'recursive' : undefined,
+			options?.force ? 'force' : undefined,
+		].filter((option): option is string => option !== undefined);
+		if (unsupported.length > 0) {
+			throw new SandboxOperationUnsupportedError({
+				operation: 'rm',
+				provider: 'E2B',
+				options: unsupported,
+			});
+		}
 		await this.sandbox.files.remove(path);
 	}
 
@@ -183,7 +192,7 @@ This adapter imports from `e2b`, so the user's project needs to depend on
 it directly. If their `package.json` does not already list it, add it:
 
 ```bash
-npm install e2b
+npm install e2b@^2.30.0
 ```
 
 (Use the user's package manager — `pnpm add`, `yarn add`, etc. if their

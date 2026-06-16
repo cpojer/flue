@@ -83,15 +83,15 @@ When an operation is slow or unexpectedly expensive, its nested activity can pro
 
 Callbacks registered with `observe(...)` are invoked while Flue emits activity and receive isolated JSON snapshots. Returned promises are observed for rejection but are not awaited. In a distributed deployment, each running application context observes only the activity it handles; use an external backend to aggregate telemetry across processes or isolates.
 
-Pass `observe(subscriber, { types: [...] })` to restrict delivery to the event types your subscriber handles. This is a cost control, not just a filter: each delivered event is serialized on the emit path, and streaming events such as `message_update` carry the full accumulated assistant message on every chunk.
+Pass `observe(subscriber, { types: [...] })` to restrict delivery to the event types your subscriber handles. This reduces serialization and callback work and limits the sensitive event data exposed to the subscriber. Streaming deltas are best-effort live progress; use `message_end` as the authoritative completed assistant message. A subscriber attached after generation starts may miss earlier partial output until that event arrives. Internal interrupted-turn recovery uses separate durable state and is unaffected.
 
 ## Choose an observability provider
 
-| Provider | Choose it when |
-| --- | --- |
-| [OpenTelemetry](/docs/ecosystem/tooling/opentelemetry/) | You need vendor-neutral traces or already operate an OpenTelemetry-compatible backend. |
-| [Braintrust](/docs/ecosystem/tooling/braintrust/) | You want content-bearing agent traces, model usage, costs, and evaluation-oriented debugging. |
-| [Sentry](/docs/ecosystem/tooling/sentry/) | You primarily want actionable workflow failures and explicit error logs without exporting model content by default. |
+| Provider                                                | Choose it when                                                                                                      |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| [OpenTelemetry](/docs/ecosystem/tooling/opentelemetry/) | You need vendor-neutral traces or already operate an OpenTelemetry-compatible backend.                              |
+| [Braintrust](/docs/ecosystem/tooling/braintrust/)       | You want content-bearing agent traces, model usage, costs, and evaluation-oriented debugging.                       |
+| [Sentry](/docs/ecosystem/tooling/sentry/)               | You primarily want actionable workflow failures and explicit error logs without exporting model content by default. |
 
 You can also consume `observe(...)` directly when these integrations do not match your telemetry or data-handling requirements.
 
