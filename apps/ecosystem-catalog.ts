@@ -15,6 +15,13 @@ function sortEcosystemItems(a: EcosystemItem, b: EcosystemItem): number {
 	return (a.sortName ?? a.name).localeCompare(b.sortName ?? b.name);
 }
 
+function sortEcosystemItemsLogoFirst(a: EcosystemItem, b: EcosystemItem): number {
+	const aHasLogo = Boolean(a.icon ?? a.brand ?? a.mark);
+	const bHasLogo = Boolean(b.icon ?? b.brand ?? b.mark);
+	if (aHasLogo !== bHasLogo) return aHasLogo ? -1 : 1;
+	return sortEcosystemItems(a, b);
+}
+
 function svgDataUri(svg: string): string {
 	return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
@@ -278,7 +285,7 @@ export const sandboxes: EcosystemItem[] = [
 		iconClass: 'monochrome-white ecosystem-logo-small',
 		homepageRank: 4,
 	},
-].sort(sortEcosystemItems);
+].sort(sortEcosystemItemsLogoFirst);
 
 export const databases: EcosystemItem[] = [
 	{
@@ -384,7 +391,7 @@ const homepageOrder = [
 	'Linear',
 	'Sentry',
 	'WhatsApp',
-	'Node.js',
+	'Railway',
 	'Supabase',
 	'Notion',
 	'Daytona',
@@ -395,7 +402,7 @@ const homepageOrder = [
 	'Google Chat',
 	'Microsoft Teams',
 	'MySQL',
-	'Railway',
+	'Node.js',
 	'Redis',
 	'E2B',
 	'MongoDB',

@@ -220,6 +220,21 @@ export const docsSections: DocsSection[] = [
 				],
 			},
 			{
+				title: 'Sandboxes',
+				items: [
+					{ title: 'boxd', slug: 'ecosystem/sandboxes/boxd' },
+					{ title: 'Cloudflare Shell', slug: 'ecosystem/sandboxes/cloudflare-shell' },
+					{ title: 'Cloudflare Sandbox', slug: 'ecosystem/sandboxes/cloudflare' },
+					{ title: 'Daytona', slug: 'ecosystem/sandboxes/daytona' },
+					{ title: 'E2B', slug: 'ecosystem/sandboxes/e2b' },
+					{ title: 'exe.dev', slug: 'ecosystem/sandboxes/exedev' },
+					{ title: 'islo', slug: 'ecosystem/sandboxes/islo' },
+					{ title: 'Mirage', slug: 'ecosystem/sandboxes/mirage' },
+					{ title: 'Modal', slug: 'ecosystem/sandboxes/modal' },
+					{ title: 'Vercel Sandbox', slug: 'ecosystem/sandboxes/vercel' },
+				],
+			},
+			{
 				title: 'Deploy',
 				items: [
 					{ title: 'AWS', slug: 'ecosystem/deploy/aws' },
@@ -245,21 +260,6 @@ export const docsSections: DocsSection[] = [
 					{ title: 'Supabase', slug: 'ecosystem/databases/supabase' },
 					{ title: 'Turso', slug: 'ecosystem/databases/turso' },
 					{ title: 'Valkey', slug: 'ecosystem/databases/valkey' },
-				],
-			},
-			{
-				title: 'Sandboxes',
-				items: [
-					{ title: 'boxd', slug: 'ecosystem/sandboxes/boxd' },
-					{ title: 'Cloudflare Shell', slug: 'ecosystem/sandboxes/cloudflare-shell' },
-					{ title: 'Cloudflare Sandbox', slug: 'ecosystem/sandboxes/cloudflare' },
-					{ title: 'Daytona', slug: 'ecosystem/sandboxes/daytona' },
-					{ title: 'E2B', slug: 'ecosystem/sandboxes/e2b' },
-					{ title: 'exe.dev', slug: 'ecosystem/sandboxes/exedev' },
-					{ title: 'islo', slug: 'ecosystem/sandboxes/islo' },
-					{ title: 'Mirage', slug: 'ecosystem/sandboxes/mirage' },
-					{ title: 'Modal', slug: 'ecosystem/sandboxes/modal' },
-					{ title: 'Vercel Sandbox', slug: 'ecosystem/sandboxes/vercel' },
 				],
 			},
 			{
